@@ -89,6 +89,7 @@ end
 
 function Rosetree:filter(p, once)
     if p(self) then
+        self:destroy()
         return nil
     elseif not self.tip then
         for i, child in ipairs(self.children) do
@@ -102,7 +103,9 @@ function Rosetree:filter(p, once)
                 self.children[i] = res
             end
         end
+        self:refreshLabel()
         if self.strong or #self.children > 1 then
+            self:destroy()
             return self
         elseif #self.children == 0 then
             self:destroy()

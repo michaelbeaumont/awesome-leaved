@@ -248,7 +248,7 @@ function Guitree:refreshLabel()
             self.data.tabbox:rename(self)
         end
 
-        if self.parent ~= nil then
+        if self.parent then
             self.parent:refreshLabel()
         end
     end

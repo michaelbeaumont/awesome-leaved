@@ -261,11 +261,9 @@ function leaved.scale(pc, orientation)
     local f = function(node)
         if orientation == 'opposite' then
             if node.parent:isHorizontal() then
-                scaleNode(pc, node, 
-                    Guitree.vert)
+                scaleNode(pc, node, Guitree.vert)
             else
-                scaleNode(pc, node, 
-                    Guitree.horiz)
+                scaleNode(pc, node, Guitree.horiz)
             end
         else
             scaleNode(pc, node, orientation)
