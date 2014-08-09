@@ -58,13 +58,14 @@ function Guitree:newTip(data)
     callbacks['property::skip_taskbar']=u
     callbacks['property::screen']=u
     callbacks['property::hidden']=u
-    callbacks['focus']=u
+    callbacks['focus']=function() u() newNode:focus() end
     callbacks['unfocus']=u
         
     for k, v in pairs(callbacks) do
         c:connect_signal(k, v)
     end
 
+    newNode.data.lastFocus = newNode
     newNode.data.callbacks = callbacks
 
     return newNode
@@ -127,6 +128,16 @@ function Guitree:isVertical()
     return self.data.orientation == Guitree.vert
 end
 
+function Guitree:focus(node)
+    if self.data.tabbox then
+        self.data.tabbox.container.visible = true
+    end
+    if self.parent then
+        self.parent:focus(self)
+    end
+    self.data.lastFocus = node or self
+end
+
 --Insert and node manipulation
 function Guitree:add(child, ind)
     local old_num = #self.children
@@ -137,18 +148,21 @@ function Guitree:add(child, ind)
     end
     child.data.geometry.pc = 100/#self.children
     child:refreshLabel()
+    if old_num == 0 then
+        self.data.lastFocus = child
+    end
 end
 
-function Guitree:liftLeaf()
+function Guitree:pushdownTip()
     local pc = self.data.geometry.pc
-    local new = self.super.liftLeaf(self, false, default_container())
+    local new = self.super.pushdownTip(self, false, default_container())
     new.data.geometry.pc = pc
     return new
 end
 
-function Guitree:squashLeaf()
+function Guitree:pullupTip()
     local pc = self.data.geometry.pc
-    local new = self.super.squashLeaf(self)
+    local new = self.super.pullupTip(self)
     new.data.geometry.pc = pc
     new:refreshLabel()
     return new
@@ -288,10 +302,10 @@ function Guitree:show(level)
         local output, name
         if node.tip then
             name = "Client["
-            output = tostring(node.data.c.window .. " '" .. "Size: " .. node.data.geometry.pc .. "'")
+            output = tostring(node.data.c.window .. "|" .. "Size: " .. node.data.geometry.pc)
         else
             name = "Container["
-            output = tostring(tostring(node.data.order) .. ":" .. node.data.orientation .. ' ' .. #node.children .. " '" .. "Size: " .. node.data.geometry.pc .. "'")
+            output = tostring(tostring(node.data.order) .. ":" .. node.data.orientation .. ' ' .. #node.children .. "|" .. "Size: " .. node.data.geometry.pc .. "|" .. tostring(node.data.lastFocus))
         end
         print(string.rep(" ", level) .. name .. output .. "]")
     end

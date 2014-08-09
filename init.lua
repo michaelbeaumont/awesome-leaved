@@ -24,11 +24,11 @@ local Tabbox = require "awesome-leaved.tabbox"
 local leaved = { name = 'leaved' }
 
 -- Globals
-local debug = true
+local debug = false
 local trees = {}
-local forceSplit = nil
+local forceNextOrient = nil
 
---little utility function
+--little utility functions
 local function partial(f, ...)
     local oarg = {...}
     return function(...)
@@ -36,7 +36,14 @@ local function partial(f, ...)
     end
 end
 
-local function resize(self, p, geometry)
+local function dbg_print(f)
+    if debug then
+        print(f())
+    end
+end
+
+--draw and arrange functions
+local function redraw(self, p, geometry)
     if not self.tip then
         if self:isOrdered() and not self.data.tabbox then
             self.data.tabbox = Tabbox:new(p.index, geometry)
@@ -54,39 +61,32 @@ local function resize(self, p, geometry)
         local current_y = geometry.y + tabbox_height
 
         
-        local redo = true
-        while redo do
-            redo = false
-            for i, c in ipairs(self.children) do
-                local sub_geo = { width=width, height=height, x=current_x,
-                y=current_y }
-                if not self:isOrdered() then
-                    local pc = c.data.geometry.pc/100
-                    if self:isHorizontal() then
-                        diff_x = math.floor(pc*width)
-                        sub_geo.width = diff_x
-                    else
-                        diff_y = math.floor(pc*height)
-                        sub_geo.height = diff_y
-                    end
-                    resize(c, p, sub_geo) 
-                    current_x = current_x + diff_x
-                    current_y = current_y + diff_y
-                elseif c.data.c and capi.client.focus == c.data.c then--self.data.lastFocus == c then
-                    resize(c, p, sub_geo)
+        for i, c in ipairs(self.children) do
+            local sub_geo = { width=width, height=height, x=current_x,
+            y=current_y }
+            if not self:isOrdered() then
+                local pc = c.data.geometry.pc/100
+                if self:isHorizontal() then
+                    diff_x = math.floor(pc*width)
+                    sub_geo.width = diff_x
                 else
-                    sub_geo.width = 0
-                    resize(c, p, sub_geo)
+                    diff_y = math.floor(pc*height)
+                    sub_geo.height = diff_y
                 end
+                current_x = current_x + diff_x
+                current_y = current_y + diff_y
+            elseif self.data.lastFocus ~= c then
+                sub_geo.width = 0
+                sub_geo.height = 0
             end
+            redraw(c, p, sub_geo) 
         end
     else
-        if geometry.width == 0 or geometry.height == 0 then
-            self.data.c.visible = false
-        else
+        if geometry.width ~= 0 and geometry.height ~= 0 then
             geometry.width = geometry.width - self.data.c.border_width
             geometry.height = geometry.height - self.data.c.border_width
             self.data.c:geometry(geometry)
+            self.data.c:raise()
         end
     end
 end
@@ -103,7 +103,6 @@ function leaved.arrange(p)
     local tag = awful.tag.selected(capi.mouse.screen)
     if not trees[tag] then
         trees[tag] = {
-            lastFocus = nil,
             clients = nil,
             total_num = 0,
             top = Guitree:newContainer(true)
@@ -112,92 +111,94 @@ function leaved.arrange(p)
 
     local top = trees[tag].top
 
-    local lastFocus = awful.client.focus.history.get(1, 0)
-    if lastFocus ~= nil then
-        if awful.client.floating.get(lastFocus) then
-            lastFocus = nil
-        else
-            trees[tag].lastFocus = lastFocus
-        end
-    end
-
-    local initLayout = false
-
     local old_num = trees[tag].total_num
     local changed = n - old_num
     if math.abs(changed) > 1 then
         initLayout = true
     end
-
     trees[tag].total_num = n
 
-    local prevClient = nil
-    local splitHoriz = true
-
     if changed > 0 then
+        local lastFocusNode, lastFocusParent, lastFocusGeo
+        local lastFocus = awful.client.focus.history.get(1, 0)
+        if lastFocus and not awful.client.floating.get(lastFocus) then
+            lastFocusNode = top:findWith("window", lastFocus.window)
+            if lastFocusNode then
+                lastFocusParent = lastFocusNode.parent
+                lastFocusGeo = lastFocusNode.data.c:geometry()
+            end
+        end
+
+
+        local initLayout = false
+
+        local prevClient = nil
+        local splitHoriz = false
+        local nextOrient = forceNextOrient
+
         for i, c in ipairs(p.clients) do
             --maybe unnecessarily slow? could maintain a list of tracked clients
             local possibleChild = top:findWith("window", c.window)
             if not possibleChild then
-
-                local lastFocusParent = nil
-                local lastFocusNode = nil
-                local lastFocusGeometry = nil
-
-                if lastFocus and c.window ~= lastFocus.window and not initLayout then
-                    lastFocusNode = top:findWith("window", lastFocus.window)
-                elseif prevClient then
-                        lastFocusNode = trees[tag].top:findWith("window", prevClient.window)
-                        splitHoriz = not splitHoriz
-                end
-                if splitHoriz then
-                    newOrient = Guitree.horiz
-                else
-                    newOrient = Guitree.vert
-                end
-
                 local newClient = Guitree:newClient(c)
-                if lastFocusNode ~= nil then
-                    lastFocusGeometry = lastFocusNode.data.c:geometry()
-                    lastFocusParent = lastFocusNode.parent
-                    if (lastFocusGeometry.width <= lastFocusGeometry.height) then
-                        newOrient = Guitree.vert
+
+                if lastFocusNode then
+                    if not nextOrient then
+                        if (lastFocusGeo.width <= lastFocusGeo.height) then
+                            nextOrient = Guitree.vert
+                        else
+                            nextOrient = Guitree.horiz
+                        end
                     end
                     
-                    if lastFocusParent:getOrientation() ~= newOrient then
-                        lastFocusNode:liftLeaf()
-                        lastFocusNode:setOrientation(newOrient)
-                        lastFocusNode:add(newClient)
+                    if lastFocusParent:getOrientation() ~= nextOrient then
+                        lastFocusNode:pairWith(newClient)
+                        lastFocusNode:setOrientation(nextOrient)
                     else
                         lastFocusParent:add(newClient)
                     end
                 else
                     top:add(newClient)
                 end
+                prevClient = newClient
+            else
+                prevClient = possibleChild
             end
-            prevClient = c
+            --ready for next iteration
+            lastFocusNode = prevClient
+            lastFocusParent = lastFocusNode.parent
+            lastFocusGeo = lastFocusNode.data.c:geometry()
+            if nextOrient == Guitree.horiz then
+                nextOrient = Guitree.vert
+            else
+                nextOrient = Guitree.horiz
+            end
         end
-        forceSplit = nil
+        forceNextOrient = nil
     end
 
-    -- draw it
     if n >= 1 then
-        resize(top, p, area)
+        redraw(top, p, area)
     end
+
     if debug then
         top:show()
     end
+
     arrange_lock = false
 end
 
 --Additional functions for keybindings
+function leaved.splitH() forceNextOrient = Guitree.horiz end
+function leaved.splitV() forceNextOrient = Guitree.vert end
+
 local function change_focused(changer)
     --get all the boring local variables
     local lastFocus = awful.client.focus.history.get(1, 0)
     local screen_index = capi.mouse.screen
     local tag = awful.tag.selected(screen_index)
     local top = trees[tag].top
-    --find the parent of the focused client
+    --find the focused client
     local node = top:findWith('window', lastFocus.window)
 
     --apply function

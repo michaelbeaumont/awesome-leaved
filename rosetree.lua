@@ -51,7 +51,7 @@ function Rosetree:add(child, ind)
     end
 end
 
-function Rosetree:liftLeaf(strong, newOwnData)
+function Rosetree:pushdownTip(strong, newOwnData)
     if self.tip then
         self:destroy()
         self.tip = false
@@ -64,7 +64,12 @@ function Rosetree:liftLeaf(strong, newOwnData)
     end
 end
 
-function Rosetree:squashLeaf()
+function Rosetree:pairWith(child)
+    self:pushdownTip()
+    self:add(child)
+end
+
+function Rosetree:pullupTip()
     local child = self.children[1]
     self:destroy()
     self.tip = child.tip
@@ -111,7 +116,7 @@ function Rosetree:filter(p, once)
             self:destroy()
             return nil
         elseif #self.children == 1 then
-            return self:squashLeaf()
+            return self:pullupTip()
         end
     else
         return self

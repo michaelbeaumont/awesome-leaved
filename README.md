@@ -52,11 +52,11 @@ TODO
 
 This project is incomplete, there are a couple (a lot of) things missing and just as many bugs
 
-* Properly track last focused node for subcontainers
+* Display selected containers nicely in tabboxes
+* Handle fullscreen clients
 * Add ability to swap clients/containers. My current plan is to show transparent numbers over all windows and wait for a choice, pentadactyl style
 * Honor client size minimums
 * Add mouse scaling support
-* Add client focusing with respect to containers, i.e. rotate through siblings of the focused client
 * And more
 
 Bugs

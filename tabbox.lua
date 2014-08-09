@@ -1,6 +1,5 @@
 local awful = require "awful"
 local wibox = require "wibox"
-local beautiful = require "beautiful"
 local Guitree = require "awesome-leaved.guitree"
 
 local capi =
@@ -115,7 +114,9 @@ function tabbox:resize(p, geometry, node)
         new_geo.height = self.box_height
     end
     self.container:geometry(new_geo)
-    self.container.visible = true
+    if geometry.width == 0 or geometry.height == 0 then
+        self.container.visible = false 
+    end
 end
 
 function tabbox:redraw(p, geometry, node)
@@ -125,13 +126,16 @@ end
 
 function tabbox:new(screen, geometry)
     local tabbox = {}
-    local container = wibox({screen = screen, ontop = true})
+    local container = wibox({screen = screen, ontop = true, visible=true})
 
     tabbox.buttons = awful.util.table.join(
                      awful.button({ }, 1, function (node)
-                         local c = node.data.lastFocus
+                         while not node.data.lastFocus.data.c do
+                             node = node.data.lastFocus
+                         end
+                         local c = node.data.lastFocus.data.c
                          capi.client.focus = c
-                         node.data.c:raise()
+                         c:raise()
                      end))
 
     tabbox.cache_data = setmetatable({}, { __mode = 'k' })
