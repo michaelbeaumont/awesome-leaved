@@ -273,18 +273,18 @@ function leaved.scale(pc, orientation)
     return partial(change_focused, f)
 end
 
-function leaved.focusedScale(pc)
+function leaved.scaleFocused(pc)
     return leaved.scale(pc, nil)
 end
 
-function leaved.oppositeScale(pc)
+function leaved.scaleOpposite(pc)
     return leaved.scale(pc, 'opposite')
 end
 
-function leaved.hscale(pc)
+function leaved.scaleH(pc)
     return leaved.scale(pc, Guitree.horiz)
 end
-function leaved.vscale(pc)
+function leaved.scaleV(pc)
     return leaved.scale(pc, Guitree.vert)
 end
 

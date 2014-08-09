@@ -20,30 +20,35 @@ Add `leaved` to the `layouts` table in rc.lua
 Keybindings
 -----------
 
-There are a couple of available keybindings.
+There are a few important keybindings for leaved.
+
 To switch the orientation of the current container use `horizontalize` and `verticalize`.
 
     awful.key({ modkey }, "h", leaved.horizontalize),
     awful.key({ modkey }, "v", leaved.verticalize),
 
-To switch between no tabs, tabs and stack use `reorder`
+To force the current container to split in a certain direction, bind the following functions:
+
+    awful.key({ modkey, "Shift" }, "h", leaved.splitH),
+    awful.key({ modkey, "Shift" }, "v", leaved.splitV),
+
+To switch between no tabs, tabs and stack use `reorder`:
 
     awful.key({ modkey, "Shift" }, "t", leaved.reorder),
 
-
 To scale windows there are two options, use vertical and horizontal scaling and include the percentage points to scale as an argument:
 
-    awful.key({ modkey, "Shift" }, "]", leaved.vscale(-5)),
-    awful.key({ modkey, "Shift" }, "[", leaved.vscale(5)),
-    awful.key({ modkey }, "]", leaved.hscale(-5)),
-    awful.key({ modkey }, "[", leaved.hscale(5))
+    awful.key({ modkey, "Shift" }, "]", leaved.scaleV(-5)),
+    awful.key({ modkey, "Shift" }, "[", leaved.scaleV(5)),
+    awful.key({ modkey }, "]", leaved.scaleH(-5)),
+    awful.key({ modkey }, "[", leaved.scaleH(5))
 
 Or scale based on the focused client and its opposite direction:
 
-    awful.key({ modkey, "Shift" }, "]", leaved.oppositeScale(-5)),
-    awful.key({ modkey, "Shift" }, "[", leaved.oppositeScale(5)),
-    awful.key({ modkey }, "]", leaved.focusedScale(-5)),
-    awful.key({ modkey }, "[", leaved.focusedScale(5))
+    awful.key({ modkey, "Shift" }, "]", leaved.scaleOpposite(-5)),
+    awful.key({ modkey, "Shift" }, "[", leaved.scaleOpposite(5)),
+    awful.key({ modkey }, "]", leaved.scaleFocused(-5)),
+    awful.key({ modkey }, "[", leaved.scaleFocused(5))
 
 `focusedScale` will always make the current client bigger or smaller in its container and `oppositeScale` will always scale in the opposing direction.
 
@@ -52,7 +57,7 @@ TODO
 
 This project is incomplete, there are a couple (a lot of) things missing and just as many bugs
 
-* Display selected containers nicely in tabboxes
+* Display selected containers with styling in tabboxes
 * Handle fullscreen clients
 * Add ability to swap clients/containers. My current plan is to show transparent numbers over all windows and wait for a choice, pentadactyl style
 * Honor client size minimums
@@ -63,5 +68,4 @@ Bugs
 ----
 
 * Spacing between clients can be a bit uneven, not sure yet exactly why this is happening.
-* Trying to switch to a container by clicking on the tab will not work, this is on the todo
 * Properly clean up on layout switch
