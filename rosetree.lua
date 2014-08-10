@@ -9,7 +9,6 @@ function Rosetree:new(data, children, strong)
             tip = true,
             data = data,
             parent = nil,
-            index = 0
         }
     else
         node = {
@@ -18,7 +17,6 @@ function Rosetree:new(data, children, strong)
             data = data,
             children = children,
             parent = nil,
-            index = 0
         }
     end
     self.__index = self
@@ -44,10 +42,8 @@ function Rosetree:add(child, ind)
     --add child
     if ind and ind <= #self.children then
         table.insert(self.children, ind, child)
-        child.index = ind
     else
         table.insert(self.children, child)
-        child.index = #self.children
     end
 end
 
