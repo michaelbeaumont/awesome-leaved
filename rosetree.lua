@@ -74,6 +74,29 @@ function Rosetree:pullupTip()
     return self
 end
 
+function Rosetree:swap(node)
+    if node == self then return end
+    local own_par = self.parent
+    local node_par = node.parent
+    local ni, oi
+    for i, c in ipairs(own_par.children) do
+        if c == self then
+            oi = i
+        end
+    end
+    for i, c in ipairs(node_par.children) do
+        if c == node then
+            ni = i
+        end
+    end
+    node_par.children[ni] = self
+    own_par.children[oi] = node
+    node.parent = own_par
+    self.parent = node_par
+    node:refreshLabel()
+    self:refreshLabel()
+end
+
 --Search and filter rosetrees
 function Rosetree:find(compare)
     if self.tip then
