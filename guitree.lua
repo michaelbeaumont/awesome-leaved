@@ -13,6 +13,7 @@ Guitree.vert = 'V'
 Guitree.horiz = 'H'
 Guitree.stack = 'stack'
 Guitree.tabs = 'tabs'
+
 local function default_container()
     return {
         order=nil,
@@ -249,7 +250,7 @@ function Guitree:refreshLabel()
     else
         local labels = {}
 
-        labels[1] = self.data.orientation .. " ["
+        labels[1] = self:getOrientation() .. " ["
         
         for i, c in ipairs(self.children) do
             labels[i+1] = c.data.label

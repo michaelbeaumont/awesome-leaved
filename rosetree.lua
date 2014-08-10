@@ -108,14 +108,13 @@ function Rosetree:filter(p, once)
                 self.children[i] = res
             end
         end
-        self:refreshLabel()
-        if self.strong or #self.children > 1 then
-            self:destroy()
+        --self:refreshLabel()
+        if #self.children > 1 then
             return self
         elseif #self.children == 0 then
             self:destroy()
-            return nil
-        elseif #self.children == 1 then
+            return self.strong and self or nil
+        elseif #self.children == 1 and not self.strong then
             return self:pullupTip()
         end
     else
