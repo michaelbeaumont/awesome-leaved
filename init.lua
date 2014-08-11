@@ -9,6 +9,7 @@ local table = table
 local math = math
 local awful = require "awful"
 local wibox = require "wibox"
+local keygrabber = require("awful.keygrabber")
 local capi =
 {
     client = client,
@@ -276,7 +277,6 @@ end
 function leaved.scaleFocused(pc)
     return leaved.scale(pc, nil)
 end
-
 function leaved.scaleOpposite(pc)
     return leaved.scale(pc, 'opposite')
 end
@@ -286,6 +286,98 @@ function leaved.scaleH(pc)
 end
 function leaved.scaleV(pc)
     return leaved.scale(pc, Guitree.vert)
+end
+
+function leaved.swap()
+    local cls_map = {}
+    local screen = capi.mouse.screen
+    local tag = awful.tag.selected(screen)
+    local lastFocus = awful.client.focus.history.get(1, 0)
+    local p = function() return true end
+    local f = function(node, level)
+        if node.tip then
+            local c_geo = node.data.c:geometry()
+
+            local label = wibox.widget.textbox()
+            label:set_ellipsize('none')
+            label:set_align('center')
+            label:set_valign('center')
+
+            local font_size = c_geo.height
+            local wi, he = c_geo.width, c_geo.height
+            while wi >= c_geo.width or he >= c_geo.height do
+                
+                font_size = font_size/2
+                local font = "sans " .. font_size
+                local text = {"<span font_desc='"..font.."'>"}
+                table.insert(text, #cls_map+1)
+                table.insert(text, "</span>")
+
+                --TODO wibox only on one tag
+                label:set_markup(table.concat(text))
+
+                wi, he = label:fit(c_geo.width, c_geo.height)
+            end
+            local geo = { 
+                height=he,
+                width=wi,
+                x = c_geo.x + c_geo.width/2 - wi/2,
+                y = c_geo.y + c_geo.height/2 - he/2
+            }
+
+            local box = wibox({screen = screen,
+                               ontop=true,
+                               visible=true,
+                               opacity=0.3})
+
+            box:set_widget(label)
+            box:geometry(geo)
+
+            table.insert(cls_map, {node=node, label=box})
+            if node.data.c == lastFocus then
+                cls_map.current = #cls_map
+            end
+        end
+    end
+    if trees[tag] then
+        trees[tag].top:traverse(f, p, 0)
+    end
+
+    local res = #cls_map/10
+    local digits = 1
+    while res >= 1 do
+        res = res/10
+        digits = digits + 1
+    end
+
+    local keys = {}
+    local collect
+    collect = keygrabber.run(function(mod, key, event)
+        if event == "release" then return end
+
+        print(key)
+        if tonumber(key) then
+            if debug then print("Got key: " .. tonumber(key)) end
+            table.insert(keys, tonumber(key)) 
+            if #keys < digits then
+                if debug then print("Waiting for more keys") end
+                return 
+            end
+        elseif key ~= "Return" and key ~= "KP_Enter" then
+            keys = {}
+        end
+        keygrabber.stop(collect)
+        local choice = tonumber(table.concat(keys))
+        if choice then
+            if debug then print("Chosen: " .. choice) end
+            cls_map[cls_map.current].node:swap(cls_map[choice].node)
+            --force rearrange
+            awful.layout.arrange(screen)
+        end
+        for i, c in ipairs(cls_map) do
+            c.label.visible = false
+        end
+    end)
 end
 
 --Function called when a client is unmanaged

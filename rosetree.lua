@@ -9,7 +9,6 @@ function Rosetree:new(data, children, strong)
             tip = true,
             data = data,
             parent = nil,
-            index = 0
         }
     else
         node = {
@@ -18,7 +17,6 @@ function Rosetree:new(data, children, strong)
             data = data,
             children = children,
             parent = nil,
-            index = 0
         }
     end
     self.__index = self
@@ -44,10 +42,8 @@ function Rosetree:add(child, ind)
     --add child
     if ind and ind <= #self.children then
         table.insert(self.children, ind, child)
-        child.index = ind
     else
         table.insert(self.children, child)
-        child.index = #self.children
     end
 end
 
@@ -76,6 +72,29 @@ function Rosetree:pullupTip()
     self.data = child.data
     self.children = child.children
     return self
+end
+
+function Rosetree:swap(node)
+    if node == self then return end
+    local own_par = self.parent
+    local node_par = node.parent
+    local ni, oi
+    for i, c in ipairs(own_par.children) do
+        if c == self then
+            oi = i
+        end
+    end
+    for i, c in ipairs(node_par.children) do
+        if c == node then
+            ni = i
+        end
+    end
+    node_par.children[ni] = self
+    own_par.children[oi] = node
+    node.parent = own_par
+    self.parent = node_par
+    node:refreshLabel()
+    self:refreshLabel()
 end
 
 --Search and filter rosetrees

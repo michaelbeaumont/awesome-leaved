@@ -17,6 +17,12 @@ Put the awesome-leaved directory in the same location as rc.lua and include the 
     
 Add `leaved` to the `layouts` table in rc.lua
 
+Additionally, add the following to your beautiful theme:
+
+    theme.layout_leaved = "~/.config/awesome/awesome-leaved/leaved.png"
+
+using the correct path to the image file.
+
 Keybindings
 -----------
 
@@ -52,6 +58,10 @@ Or scale based on the focused client and its opposite direction:
 
 `focusedScale` will always make the current client bigger or smaller in its container and `oppositeScale` will always scale in the opposing direction.
 
+To swap two clients in the tree, use `swap`:
+
+    awful.key({ modkey }, "'", leaved.swap)
+
 TODO
 ----
 
@@ -59,7 +69,6 @@ This project is incomplete, there are a couple (a lot of) things missing and jus
 
 * Display selected containers with styling in tabboxes
 * Handle fullscreen clients
-* Add ability to swap clients/containers. My current plan is to show transparent numbers over all windows and wait for a choice, pentadactyl style
 * Honor client size minimums
 * Add mouse scaling support
 * And more

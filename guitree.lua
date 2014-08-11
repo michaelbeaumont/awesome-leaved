@@ -154,6 +154,7 @@ function Guitree:add(child, ind)
     end
 end
 
+--we have to always take on the old geometry
 function Guitree:pushdownTip()
     local pc = self.data.geometry.pc
     local new = self.super.pushdownTip(self, false, default_container())
@@ -167,6 +168,13 @@ function Guitree:pullupTip()
     new.data.geometry.pc = pc
     new:refreshLabel()
     return new
+end
+
+function Guitree:swap(node)
+    local old_geo = self.data.geometry
+    self.super.swap(self, node)
+    self.data.geometry = node.data.geometry
+    node.data.geometry = old_geo
 end
 
 --Generating labels for nodes
