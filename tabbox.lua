@@ -120,8 +120,8 @@ function tabbox:resize(p, geometry, node)
 end
 
 function tabbox:redraw(p, geometry, node)
-    self:rename(node)
     self:resize(p, geometry, node)
+    self:rename(node)
 end
 
 function tabbox:new(screen, geometry)

@@ -76,5 +76,4 @@ This project is incomplete, there are a couple (a lot of) things missing and jus
 Bugs
 ----
 
-* Spacing between clients can be a bit uneven, not sure yet exactly why this is happening.
 * Properly clean up on layout switch

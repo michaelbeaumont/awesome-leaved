@@ -51,50 +51,71 @@ end
 --draw and arrange functions
 local function redraw(self, p, geometry)
     if not self.tip then
-        if self:isOrdered() and not self.data.tabbox then
-            self.data.tabbox = Tabbox:new(p.index, geometry)
-        end
-        local num = #self.children
         local tabbox_height = 0
-        if self.data.tabbox then
-            self.data.tabbox:resize(p, geometry, self)
+        if self:isOrdered() then
+            if not self.data.tabbox then
+                self.data.tabbox = Tabbox:new(p.index, geometry)
+            end
+            self.data.tabbox:redraw(p, geometry, self)
             tabbox_height = self.data.tabbox.container.height
         end
+        local num = #self.children
+
+        local dimension, invariant, offset
+        if self:isHorizontal() then
+            dimension = "width"
+            invariant = "y"
+            offset = "x"
+        else
+            dimension = "height"
+            invariant = "x"
+            offset = "y"
+        end
+
         local width = geometry.width
         local height = geometry.height - tabbox_height
-        local diff_x, diff_y = 0, 0
-        local current_x = geometry.x
-        local current_y = geometry.y + tabbox_height
+        geometry["y"] = geometry.y + tabbox_height
 
-        
+        local current_offset = geometry[offset] 
+        --current_offset - geometry[offset]
+        local predicted_used = 0
+        local tweak_factor = 1
+
         for i, c in ipairs(self.children) do
-            local sub_geo = { width=width, height=height, x=current_x,
-            y=current_y }
+            local sub_geo = { width=width, height=height }
+            sub_geo[invariant] = geometry[invariant]
+            sub_geo[offset] = current_offset
             if not self:isOrdered() then
-                local pc = c.data.geometry.pc/100
-                if self:isHorizontal() then
-                    diff_x = math.floor(pc*width)
-                    sub_geo.width = diff_x
-                else
-                    diff_y = math.floor(pc*height)
-                    sub_geo.height = diff_y
-                end
-                current_x = current_x + diff_x
-                current_y = current_y + diff_y
+                local pc = c.data.geometry.pc/100 * tweak_factor
+                sub_geo[dimension] = math.floor(pc*sub_geo[dimension])
+                predicted_used = predicted_used + sub_geo[dimension]
+
+                local real_geo = redraw(c, p, sub_geo) 
+
+                current_offset = current_offset + real_geo[dimension]
+                tweak_factor = predicted_used / (current_offset - geometry[offset])
+
             elseif self.data.lastFocus ~= c then
+                --we resize the client
                 sub_geo.width = 0
                 sub_geo.height = 0
+                redraw(c, p, sub_geo) 
+            else
+                redraw(c, p, sub_geo)
             end
-            redraw(c, p, sub_geo) 
         end
     else
+        local border = 2*self.data.c.border_width
         if geometry.width ~= 0 and geometry.height ~= 0 then
-            geometry.width = geometry.width - self.data.c.border_width
-            geometry.height = geometry.height - self.data.c.border_width
-            self.data.c:geometry(geometry)
+            geometry.width = geometry.width - border
+            geometry.height = geometry.height - border
             self.data.c:raise()
+            geometry = self.data.c:geometry(geometry)
+            geometry.width = geometry.width + border
+            geometry.height = geometry.height + border
         end
     end
+    return geometry
 end
 
 function leaved.arrange(p)
@@ -260,7 +281,6 @@ local function scaleNode(pc, node, orientation)
     else
         scaleNode(pc, node.parent, orientation)
     end
-
 end
 
 
