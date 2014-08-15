@@ -37,9 +37,14 @@ local function partial(f, ...)
     end
 end
 
-local function dbg_print(f)
+local function dbg(f)
     if debug then
         print(f())
+    end
+end
+local function dbg_print(...)
+    if debug then
+        print(...)
     end
 end
 
