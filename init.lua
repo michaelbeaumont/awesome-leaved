@@ -313,7 +313,7 @@ function leaved.scaleV(pc)
     return leaved.scale(pc, Guitree.vert)
 end
 
-function leaved.swap()
+local function select_client(callback)
     local cls_map = {}
     local screen = capi.mouse.screen
     local tag = awful.tag.selected(screen)
@@ -380,12 +380,11 @@ function leaved.swap()
     collect = keygrabber.run(function(mod, key, event)
         if event == "release" then return end
 
-        print(key)
+        dbg_print("Got key: " .. key)
         if tonumber(key) then
-            if debug then print("Got key: " .. tonumber(key)) end
             table.insert(keys, tonumber(key)) 
             if #keys < digits then
-                if debug then print("Waiting for more keys") end
+                dbg_print("Waiting for more keys")
                 return 
             end
         elseif key ~= "Return" and key ~= "KP_Enter" then
@@ -394,8 +393,8 @@ function leaved.swap()
         keygrabber.stop(collect)
         local choice = tonumber(table.concat(keys))
         if choice then
-            if debug then print("Chosen: " .. choice) end
-            cls_map[cls_map.current].node:swap(cls_map[choice].node)
+            dbg_print("Chosen: " .. choice)
+            callback(cls_map[cls_map.current].node, cls_map[choice].node)
             --force rearrange
             awful.layout.arrange(screen)
         end
@@ -403,6 +402,20 @@ function leaved.swap()
             c.label.visible = false
         end
     end)
+end
+
+function leaved.swap()
+    local function c(current, choice)
+        current:swap(choice)
+    end
+    select_client(c)
+end
+
+function leaved.focus()
+    local function c(current, choice)
+        capi.client.focus = choice.data.c
+    end
+    select_client(c)
 end
 
 --Function called when a client is unmanaged
