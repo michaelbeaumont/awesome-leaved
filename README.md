@@ -62,6 +62,10 @@ To swap two clients in the tree, use `swap`:
 
     awful.key({ modkey }, "'", leaved.swap)
 
+To select a client with the keyboard, use `focus`:
+
+    awful.key({ modkey }, ";", leaved.focus)
+
 TODO
 ----
 
