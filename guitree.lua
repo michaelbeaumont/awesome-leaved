@@ -21,6 +21,7 @@ local function default_container()
         lastFocus=nil,
         tabbox=nil,
         label="",
+        max = {h = false, v = false},
         geometry = { pc = 100 },
         callbacks={}
     }
@@ -50,8 +51,14 @@ function Guitree:newTip(data)
     callbacks['property::sticky']=u
     callbacks['property::ontop']=u
     callbacks['property::floating']=u
-    callbacks['property::maximized_horizontal']=u
-    callbacks['property::maximized_vertical']=u
+    callbacks['property::maximized_horizontal']=function()
+        newNode.parent:max('h', newNode.data.c.maximized_horizontal)
+        u()
+    end
+    callbacks['property::maximized_vertical']=function()
+        newNode.parent:max('v', newNode.data.c.maximized_vertical)
+        u()
+    end
     callbacks['property::minimized']=u
     callbacks['property::name']=u
     callbacks['property::icon_name']=u
@@ -137,6 +144,10 @@ function Guitree:focus(node)
         self.parent:focus(self)
     end
     self.data.lastFocus = node or self
+end
+
+function Guitree:max(o, val)
+    self.data.max[o] = val
 end
 
 --Insert and node manipulation
@@ -314,7 +325,7 @@ function Guitree:show(level)
             output = tostring(node.data.c.window .. "|" .. "Size: " .. node.data.geometry.pc)
         else
             name = "Container["
-            output = tostring(tostring(node.data.order) .. ":" .. node.data.orientation .. ' ' .. #node.children .. "|" .. "Size: " .. node.data.geometry.pc .. "|" .. tostring(node.data.lastFocus))
+            output = tostring(tostring(node.data.order) .. ":" .. node.data.orientation .. ' ' .. #node.children .. "|" .. "Size: " .. node.data.geometry.pc .. "|" .. tostring(node.data.lastFocus) .. "|" .. "hmax: " .. tostring(node.data.max.h))
         end
         print(string.rep(" ", level) .. name .. output .. "]")
     end

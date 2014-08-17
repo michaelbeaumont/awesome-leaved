@@ -25,9 +25,10 @@ local Tabbox = require "awesome-leaved.tabbox"
 local leaved = { name = 'leaved' }
 
 -- Globals
-local debug = false
+local debug = true
 local trees = {}
 local forceNextOrient = nil
+local layout_type = "basic"
 
 --little utility functions
 local function partial(f, ...)
@@ -49,17 +50,19 @@ local function dbg_print(...)
 end
 
 --draw and arrange functions
-local function redraw(self, p, geometry)
+local function redraw(self, p, geometry, post_raises)
     if not self.tip then
         local tabbox_height = 0
+        local maximized = self.data.max.h and self.data.max.v
+        local geo = maximized and p.workarea or geometry
+
         if self:isOrdered() then
             if not self.data.tabbox then
-                self.data.tabbox = Tabbox:new(p.index, geometry)
+                self.data.tabbox = Tabbox:new(p.index)
             end
-            self.data.tabbox:redraw(p, geometry, self)
+            self.data.tabbox:redraw(p, geo, self)
             tabbox_height = self.data.tabbox.container.height
         end
-        local num = #self.children
 
         local dimension, invariant, offset
         if self:isHorizontal() then
@@ -72,51 +75,62 @@ local function redraw(self, p, geometry)
             offset = "y"
         end
 
-        local width = geometry.width
-        local height = geometry.height - tabbox_height
-        geometry["y"] = geometry.y + tabbox_height
 
-        local current_offset = geometry[offset] 
-        --current_offset - geometry[offset]
+        local width = geo.width
+        local height = geo.height - tabbox_height
+        geo.y = geo.y + tabbox_height
+
+        local current_offset = geo[offset]
+
         local predicted_used = 0
         local tweak_factor = 1
+        local post_raise = nil
 
         for i, c in ipairs(self.children) do
             local sub_geo = { width=width, height=height }
-            sub_geo[invariant] = geometry[invariant]
+            sub_geo[invariant] = geo[invariant]
             sub_geo[offset] = current_offset
-            if not self:isOrdered() then
+            if not self:isOrdered() and not maximized then
                 local pc = c.data.geometry.pc/100 * tweak_factor
                 sub_geo[dimension] = math.floor(pc*sub_geo[dimension])
                 predicted_used = predicted_used + sub_geo[dimension]
 
-                local real_geo = redraw(c, p, sub_geo) 
+                local real_geo = redraw(c, p, sub_geo, post_raises)
 
                 current_offset = current_offset + real_geo[dimension]
-                tweak_factor = predicted_used / (current_offset - geometry[offset])
-
-            elseif self.data.lastFocus ~= c then
-                --we resize the client
-                sub_geo.width = 0
-                sub_geo.height = 0
-                redraw(c, p, sub_geo) 
+                tweak_factor = predicted_used / (current_offset - geo[offset])
             else
-                redraw(c, p, sub_geo)
+                if self.data.lastFocus == c then
+                    post_raise = c
+                    redraw(c, p, sub_geo, post_raises)
+                else
+                    sub_geo.width = 0
+                    sub_geo.height = 0
+                    redraw(c, p, sub_geo, post_raises)
+                end
             end
         end
     else
-        local border = 2*self.data.c.border_width
-        if geometry.width ~= 0 and geometry.height ~= 0 then
+        if awful.client.floating.get(self.data.c) then
+            table.insert(post_raises, self)
+        elseif geometry.width > 0 and geometry.height > 0 then
+            local border = 2*self.data.c.border_width
             geometry.width = geometry.width - border
             geometry.height = geometry.height - border
+
             self.data.c:raise()
+
             geometry = self.data.c:geometry(geometry)
             geometry.width = geometry.width + border
             geometry.height = geometry.height + border
+        else
+            self.data.c:geometry({width=1, height=1,
+                x=geometry.x, y = geometry.y})
         end
     end
     return geometry
 end
+
 
 function leaved.arrange(p)
     if arrange_lock then
@@ -204,8 +218,12 @@ function leaved.arrange(p)
         forceNextOrient = nil
     end
 
+    post_raises = {}
     if n >= 1 then
-        redraw(top, p, area)
+        redraw(top, p, area, post_raises)
+    end
+    for _, c in ipairs(post_raises) do
+        c.data.c:raise()
     end
 
     if debug then
