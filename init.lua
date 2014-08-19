@@ -49,6 +49,7 @@ local function dbg_print(...)
     end
 end
 
+
 --draw and arrange functions
 local function redraw(self, p, geometry, post_raises)
     if not self.tip then
@@ -86,33 +87,42 @@ local function redraw(self, p, geometry, post_raises)
         local tweak_factor = 1
         local post_raise = nil
 
+        --TODO something when used_pc = 0 tabbox should actually be hidden
+        local used_pc = 0
+        for i, c in ipairs(self.children) do
+            used_pc = used_pc + c.data.geometry.pc 
+        end
+
         for i, c in ipairs(self.children) do
             local sub_geo = { width=width, height=height }
             sub_geo[invariant] = geo[invariant]
             sub_geo[offset] = current_offset
             if not self:isOrdered() and not maximized then
-                local pc = c.data.geometry.pc/100 * tweak_factor
+                local pc = c.data.geometry.pc/used_pc * tweak_factor
+
                 sub_geo[dimension] = math.floor(pc*sub_geo[dimension])
                 predicted_used = predicted_used + sub_geo[dimension]
 
                 local real_geo = redraw(c, p, sub_geo, post_raises)
 
-                current_offset = current_offset + real_geo[dimension]
-                tweak_factor = predicted_used / (current_offset - geo[offset])
+                if real_geo[dimension] > 0 then
+                    current_offset = current_offset + real_geo[dimension]
+                    tweak_factor = predicted_used / (current_offset - geo[offset])
+                end
             else
-                if self.data.lastFocus == c then
-                    post_raise = c
-                    redraw(c, p, sub_geo, post_raises)
-                else
+                if self.data.lastFocus ~= c then
                     sub_geo.width = 0
                     sub_geo.height = 0
-                    redraw(c, p, sub_geo, post_raises)
                 end
+                redraw(c, p, sub_geo, post_raises)
             end
         end
     else
         if awful.client.floating.get(self.data.c) then
+            --TODO this is probably not necessary
             table.insert(post_raises, self)
+            geometry.width = 0
+            geometry.height = 0
         elseif geometry.width > 0 and geometry.height > 0 then
             local border = 2*self.data.c.border_width
             geometry.width = geometry.width - border
@@ -124,6 +134,7 @@ local function redraw(self, p, geometry, post_raises)
             geometry.width = geometry.width + border
             geometry.height = geometry.height + border
         else
+            --horrible hack due to wiboxes otherwise being under all windows
             self.data.c:geometry({width=1, height=1,
                 x=geometry.x, y = geometry.y})
         end
@@ -398,6 +409,8 @@ local function select_client(callback)
     collect = keygrabber.run(function(mod, key, event)
         if event == "release" then return end
 
+        --TODO hide all clients that can't be selected after this key
+        --ie 1 is pressed show only 1, 10, 11, etc
         dbg_print("Got key: " .. key)
         if tonumber(key) then
             table.insert(keys, tonumber(key)) 

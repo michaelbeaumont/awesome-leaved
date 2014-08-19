@@ -73,6 +73,7 @@ This project is incomplete, there are a couple (a lot of) things missing and jus
 
 * Display selected containers with styling in tabboxes
 * Handle fullscreen clients
+* Handle fully minimized containers
 * Honor client size minimums
 * Add mouse scaling support
 * And more

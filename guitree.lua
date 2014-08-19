@@ -50,23 +50,40 @@ function Guitree:newTip(data)
     callbacks['property::urgent']=u
     callbacks['property::sticky']=u
     callbacks['property::ontop']=u
-    callbacks['property::floating']=u
+    callbacks['property::floating']=function()
+        newNode:breakOff(client.floating.get(c), function()
+            if newNode.parent.data.lastFocus == newNode then
+                --for now choose random client
+                local i = 1
+                while newNode.parent.children[i] == newNode do
+                    i = i + 1
+                end
+                newNode.parent.data.lastFocus = newNode.parent.children[i]
+            end
+        end)
+        u()
+    end
     callbacks['property::maximized_horizontal']=function()
+        newNode:breakOff(newNode.data.c.maximized_horizontal)
         newNode.parent:max('h', newNode.data.c.maximized_horizontal)
         u()
     end
     callbacks['property::maximized_vertical']=function()
+        newNode:breakOff(newNode.data.c.maximized_vertical)
         newNode.parent:max('v', newNode.data.c.maximized_vertical)
         u()
     end
-    callbacks['property::minimized']=u
+    callbacks['property::minimized']=function()
+        newNode:breakOff(newNode.data.c.minimized)
+        u()
+    end
     callbacks['property::name']=u
     callbacks['property::icon_name']=u
     callbacks['property::icon']=u
     callbacks['property::skip_taskbar']=u
     callbacks['property::screen']=u
     callbacks['property::hidden']=u
-    callbacks['focus']=function() u() newNode:focus() end
+    callbacks['focus']=function() newNode:focus() u() end
     callbacks['unfocus']=u
         
     for k, v in pairs(callbacks) do
@@ -136,7 +153,23 @@ function Guitree:isVertical()
     return self.data.orientation == Guitree.vert
 end
 
+--make the tree "ignore" this node so to speak
+function Guitree:breakOff(condition, action)
+    local geo = self.data.geometry
+    if condition and geo.pc ~= 0 then
+        if action then action() end
+        geo._pc = geo.pc
+        geo.pc = 0
+    else
+        geo.pc = geo._pc
+    end
+end
+
 function Guitree:focus(node)
+    --do nothing when focusing "ignored" clients
+    if self.data.geometry.pc == 0 then
+        return
+    end
     if self.data.tabbox then
         self.data.tabbox.container.visible = true
     end
@@ -148,6 +181,7 @@ end
 
 function Guitree:max(o, val)
     self.data.max[o] = val
+    self:breakOff(val)
 end
 
 --Insert and node manipulation
@@ -322,7 +356,7 @@ function Guitree:show(level)
         local output, name
         if node.tip then
             name = "Client["
-            output = tostring(node.data.c.window .. "|" .. "Size: " .. node.data.geometry.pc)
+            output = tostring(node.data.c.window .. "|" .. "Size: " .. node.data.geometry.pc .. "|" .. tostring(node))
         else
             name = "Container["
             output = tostring(tostring(node.data.order) .. ":" .. node.data.orientation .. ' ' .. #node.children .. "|" .. "Size: " .. node.data.geometry.pc .. "|" .. tostring(node.data.lastFocus) .. "|" .. "hmax: " .. tostring(node.data.max.h))
