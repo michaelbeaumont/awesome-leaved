@@ -68,10 +68,11 @@ end
 function Rosetree:pullupTip()
     local child = self.children[1]
     self:destroy()
-    self.tip = child.tip
-    self.data = child.data
-    self.children = child.children
-    return self
+    return child
+--    self.tip = child.tip
+--    self.data = child.data
+--    self.children = child.children
+--    return self
 end
 
 function Rosetree:swap(node)
@@ -134,6 +135,7 @@ function Rosetree:filter(p, once)
             self:destroy()
             return self.strong and self or nil
         elseif #self.children == 1 and not self.strong then
+            self:destroy()
             return self:pullupTip()
         end
     else
