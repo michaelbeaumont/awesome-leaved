@@ -22,7 +22,10 @@ local function default_container()
         tabbox=nil,
         label="",
         max = {h = false, v = false},
-        geometry = { pc = 100, in_tree = true, visibles = 0 },
+        geometry = { fact = 1,
+                     in_tree = true,
+                     minimized = false,
+                     visibles = 0 },
         callbacks={}
     }
 end
@@ -32,7 +35,9 @@ function Guitree:newClient(c)
         c=c,
         lastFocus=c,
         label=c.name,
-        geometry = { pc = 100, in_tree = true },
+        geometry = { fact = 1,
+                     in_tree = true,
+                     minimized = false},
         callbacks={}
     }
     return self:newTip(data)
@@ -51,21 +56,29 @@ function Guitree:newTip(data)
     callbacks['property::sticky']=u
     callbacks['property::ontop']=u
     callbacks['property::floating']=function()
-        newNode:toggleIgnore(client.floating.get(newNode.data.c))
+        newNode:setIgnore(client.floating.get(newNode.data.c))
         u()
     end
     callbacks['property::maximized_horizontal']=function()
-        newNode.parent.data.max.h = newNode.data.c.maximized_horizontal
-        newNode:toggleIgnore(newNode.parent.data.max.h)
+        local maxd = newNode.data.c.maximized_horizontal
+        if newNode.data.geometry.in_tree ~= not maxd then
+            newNode:setIgnore(maxd)
+        end
         u()
     end
     callbacks['property::maximized_vertical']=function()
-        newNode.parent.data.max.v = newNode.data.c.maximized_vertical
-        newNode:toggleIgnore(newNode.parent.data.max.v)
+        local maxd = newNode.data.c.maximized_vertical
+        if newNode.data.geometry.in_tree ~= not maxd then
+            newNode:setIgnore(maxd)
+        end
         u()
     end
     callbacks['property::minimized']=function()
-        newNode:toggleIgnore(newNode.data.c.minimized)
+        local mind = newNode.data.c.minimized
+        if newNode.data.geometry.minimized ~= mind 
+            and newNode.data.geometry.in_tree ~= mind then
+            newNode:setIgnore(mind, mind)
+        end
         u()
     end
     callbacks['property::name']=u
@@ -74,16 +87,20 @@ function Guitree:newTip(data)
     callbacks['property::skip_taskbar']=u
     callbacks['property::screen']=u
     callbacks['property::hidden']=u
-    callbacks['focus']=function() newNode:focus() u() end
+    callbacks['focus']=function() 
+        local mind = newNode.data.c.minimized
+        if newNode.data.geometry.minimized == mind then
+            newNode:focus()
+        end
+        u()
+    end
     callbacks['unfocus']=u
         
     for k, v in pairs(callbacks) do
         c:connect_signal(k, v)
     end
 
-    if capi.client.focus == c then
-        newNode.data.lastFocus = newNode
-    end
+    newNode.data.lastFocus = newNode
     newNode.data.callbacks = callbacks
 
     return newNode
@@ -146,33 +163,38 @@ function Guitree:isVertical()
     return self.data.orientation == Guitree.vert
 end
 
+function Guitree:getLastFocusedClient()
+    local node = self.data.lastFocus
+    while not node.data.c do
+       node = node.data.lastFocus 
+    end
+    return node.data.c
+end
+
 function Guitree:scaleNode(pc, direction)
     if not self.parent then
         return
     elseif not direction or self.parent.data.orientation == direction then
-        if (self.data.geometry.pc >= 100 and pc > 0) or
-            (self.data.geometry.pc <= 0 and pc < 0) then
+        local old_fact = self.data.geometry.fact
+        local total_fact = 0
+        for _, c in ipairs(self.parent.children) do
+            total_fact = total_fact + c.data.geometry.fact
+        end
+        local old_pc = old_fact/total_fact
+        if (old_pc >= 1 and pc > 0) or
+            (old_pc <= 0 and pc < 0) then
             return
         end
-        local siblings = self.parent.children
-        local fact = pc/(100 - self.data.geometry.pc)
-        for _, c in ipairs(siblings) do
-            if c ~= self then
-                local geo = c.data.geometry.pc
-                if geo == 0 then
-                    c.data.geometry.pc = -pc
-                else
-                    c.data.geometry.pc = geo - geo*fact
-                end
-            end
-        end
-        self.data.geometry.pc = self.data.geometry.pc + pc
+        self.data.geometry.fact = old_fact * (1+pc/100)
     else
         self.parent:scaleNode(pc, direction)
     end
 end
 
 --handle breaking nodes in and out of the tree
+--all of these functions assume a consistent state of the tree
+--ie for all nodes if the client is minimized, also geo.min is set
+--and that the client is minimized before geo.min is set
 local function reset_last_focused(node)
     local i = 0
     while not node.data.lastFocus.data.geometry.in_tree
@@ -195,28 +217,66 @@ local function change_visibles(node, adder)
     end
 end
 
+local function descendMinimize(urnode, min, real)
+    local function f1(node)
+        node.data.geometry.minimized = min
+    end
+    local function f2(node)
+        if node.tip then node.data.c.minimized = min end
+    end
+    --node.data.geometry.minimized = min
+    --if node.tip then
+    --    if real then
+    --        print("setting real min")
+    --        node.data.c.minimized = min
+    --    end
+    --else
+    --    for _, c in ipairs(node.children) do
+    --        descendMinimize(c, min, false)
+    --    end
+    --    for _, c in ipairs(node.children) do
+    --        descendMinimize(c, min, true)
+    --    end
+    --end
+    urnode:traverse(f1)
+    urnode:traverse(f2)
+end
+
 --make the tree "ignore" this node so to speak
-function Guitree:toggleIgnore(cond)
+function Guitree:setIgnore(val, min)
     local geo = self.data.geometry
-    local changed = geo.in_tree ~= not cond
-    geo.in_tree = not cond
+    local changed = geo.in_tree ~= not val
+    geo.in_tree = not val
     if self.parent and changed then 
         change_visibles(self.parent, geo.in_tree and 1 or -1)
     end
-    if geo.in_tree then
-        self.parent.data.lastFocus = self
+    --if geo.in_tree and self.parent then
+        --self.parent.data.lastFocus = self
+    --end
+    if geo.in_tree and geo.minimized then
+        descendMinimize(self, false)
+    elseif min then
+        descendMinimize(self, true)
     end
 end
 
-
 function Guitree:focus(node)
-    --do nothing when focusing "ignored" clients
-    if not self.data.geometry.in_tree then
+    --do nothing when focusing "ignored" and not minimized clients
+    --i.e. floating clients
+    if (not self.data.geometry.in_tree 
+        and not self.data.geometry.minimized) then
         return
-    elseif self.parent and not self.parent.data.geometry.in_tree then
-        --make our parent visible if it's not
-        self.parent:toggleIgnore()
+    elseif self.parent then
+        if not self.parent.data.geometry.in_tree then
+            --make our parent visible and not minimized if it's not
+            self.parent:setIgnore(false, false)
+        elseif self.parent.data.geometry.minimized then
+            --we are the highest minimized ancestor
+            --unminimize ourselves and children
+            descendMinimize(self.parent, false)
+        end
     end
+    --we must focus all of our parents
     if self.data.tabbox then
         self.data.tabbox.container.visible = true
     end
@@ -229,40 +289,39 @@ end
 
 --Insert and node manipulation
 function Guitree:add(child, ind)
+    local fact
+    if self.tip then
+        fact = self.data.geometry.fact
+    end
+
     self.super.add(self, child, ind)
-    local fact = (#self.children-1)/#self.children
-    for _, c in ipairs(self.children) do
-        c.data.geometry.pc = c.data.geometry.pc * fact
+
+    if fact then
+        self.data.geometry.fact = fact
     end
-    child.data.geometry.pc = 100/#self.children
+
     child:refreshLabel()
-    if #self.children == 1 then
-        self.data.lastFocus = child
+
+    self.data.lastFocus = child
+    if child.data.geometry.in_tree then
+        self.data.geometry.visibles = self.data.geometry.visibles + 1
     end
-    --TODO check if child visible (mvoe this to newClient)
-    self.data.geometry.visibles = self.data.geometry.visibles + 1
 end
 
 --we have to always take on the old geometry
 function Guitree:pushdownTip()
-    local pc = self.data.geometry.pc
+    local fact = self.data.geometry.fact
     local new = self.super.pushdownTip(self, false, default_container())
-    new.data.geometry.pc = pc
-    return new
-end
-
-function Guitree:pullupTip()
-    local pc = self.data.geometry.pc
-    local new = self.super.pullupTip(self)
-    new.data.geometry.pc = pc
+    new.data.geometry.fact = fact
     return new
 end
 
 function Guitree:swap(node)
-    local old_pc = self.data.geometry.pc
+    local old_fact = self.data.geometry.fact
     self.super.swap(self, node)
-    self.data.geometry.pc = node.data.geometry.pc
-    node.data.geometry.pc = old_pc
+    --TODO keep fact in parents, seems cleaner
+    self.data.geometry.fact = node.data.geometry.fact
+    node.data.geometry.fact = old_fact
 end
 
 --Generating labels for nodes
@@ -399,10 +458,10 @@ function Guitree:show(level)
         local output, name
         if node.tip then
             name = "Client["
-            output = tostring(node.data.c.window .. "| Size: " .. node.data.geometry.pc .. "|" .. tostring(node) .. "| In tree: " .. tostring(node.data.geometry.in_tree))
+            output = tostring(node.data.c.window .. "| #: " .. node.data.geometry.fact .. "|" .. tostring(node) .. "| IT: " .. tostring(node.data.geometry.in_tree))
         else
             name = "Container["
-            output = tostring(tostring(node.data.order) .. ":" .. node.data.orientation .. ' ' .. #node.children .. "|" .. "Size: " .. node.data.geometry.pc .. "|" .. tostring(node.data.lastFocus) .. "|" .. "visibles: " .. node.data.geometry.visibles)
+            output = tostring(tostring(node) .. ":" .. node.data.orientation .. ' ' .. #node.children .. "|" .. "Size: " .. node.data.geometry.fact .. "| LF: " .. tostring(node.data.lastFocus) .. "| Vis: " .. node.data.geometry.visibles .. "| IT: " .. tostring(node.data.geometry.in_tree))
         end
         print(string.rep(" ", level) .. name .. output .. "]")
     end
