@@ -15,7 +15,7 @@ Put the awesome-leaved directory in the same location as rc.lua and include the 
 
     local leaved = require "awesome-leaved"
     
-Add `leaved` to the `layouts` table in rc.lua
+Add `leaved.layout` to the `layouts` table in rc.lua
 
 Additionally, add the following to your beautiful theme:
 
@@ -66,14 +66,16 @@ To select a client with the keyboard, use `focus`:
 
     awful.key({ modkey }, ";", leaved.focus)
 
+To minimize an entire container, use `minContainer`:
+
+    awful.key({ modkey, "Shift" }, "n", leaved.keys.minContainer)
+
 TODO
 ----
 
 This project is incomplete, there are a couple (a lot of) things missing and just as many bugs
 
 * Display selected containers with styling in tabboxes
-* Handle fullscreen clients
-* Handle fully minimized containers
 * Honor client size minimums
 * Add mouse scaling support
 * And more
@@ -82,3 +84,4 @@ Bugs
 ----
 
 * Properly clean up on layout switch
+* A couple display bugs after redrawing
