@@ -94,6 +94,10 @@ function tabbox:rename(container)
 end
 
 function tabbox:resize(p, geometry, node)
+    if not (geometry.width > 0) or not (geometry.height > 0) then
+        self.container.visible = false
+        return
+    end
     local order = node:getOrder()
     if order ~= self.order then
         if order == Guitree.stack then
@@ -113,10 +117,8 @@ function tabbox:resize(p, geometry, node)
     else
         new_geo.height = self.box_height
     end
+    self.container.visible = true
     self.container:geometry(new_geo)
-    if geometry.width == 0 or geometry.height == 0 then
-        self.container.visible = false 
-    end
 end
 
 function tabbox:redraw(p, geometry, node)
@@ -124,9 +126,9 @@ function tabbox:redraw(p, geometry, node)
     self:rename(node)
 end
 
-function tabbox:new(screen, geometry)
+function tabbox:new(screen)
     local tabbox = {}
-    local container = wibox({screen = screen, ontop = true, visible=true})
+    local container = wibox({screen = screen, ontop = false, visible=true})
 
     tabbox.buttons = awful.util.table.join(
                      awful.button({ }, 1, function (node)

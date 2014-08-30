@@ -33,8 +33,15 @@ end
 function Rosetree:add(child, ind)
     --convert to inner
     if self.tip then
+        self:destroy()
         self.tip = false
+        self.strong = false
+        local cont = self:newContainer()
         self.children = {}
+        local oldData = self.data
+        self.data = cont.data
+        local child  = self:newTip(oldData)
+        self:add(child)
     end
     --reassign parent
     child.parent = self
@@ -68,10 +75,11 @@ end
 function Rosetree:pullupTip()
     local child = self.children[1]
     self:destroy()
-    self.tip = child.tip
-    self.data = child.data
-    self.children = child.children
-    return self
+    return child
+--    self.tip = child.tip
+--    self.data = child.data
+--    self.children = child.children
+--    return self
 end
 
 function Rosetree:swap(node)
@@ -134,7 +142,9 @@ function Rosetree:filter(p, once)
             self:destroy()
             return self.strong and self or nil
         elseif #self.children == 1 and not self.strong then
-            return self:pullupTip()
+            self:destroy()
+            self.children[1].parent = self.parent
+            return self.children[1]--self:pullupTip()
         end
     else
         return self
@@ -146,10 +156,12 @@ function Rosetree:traverse(f, p, level)
     if level == nil then
         level = 0
     end
+    if p == nil then
+        p = function() return true end
+    end
     f(self, level)
 
     if not self.tip and p(self) then
-        local l = self.children
         for _, c in ipairs(self.children) do
             c:traverse(f, p, level + 1)
         end
