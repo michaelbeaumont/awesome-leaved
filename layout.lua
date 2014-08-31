@@ -277,7 +277,9 @@ function layout.arrange(p)
         layout.forceNextOrient = nil
     end
 
-    hides = {}
+    hides = {space = {}}
+    hides.space.y = p.workarea.y+1
+    hides.space.x = p.workarea.x+1
     if n >= 1 then
         redraw(top, p, area, hides)
     end
