@@ -155,8 +155,8 @@ local function select_client(callback)
             end
         end
     end
-    if trees[tag] then
-        trees[tag].top:traverse(f, p, 0)
+    if layout.trees[tag] then
+        layout.trees[tag].top:traverse(f, p, 0)
     end
 
     local res = #cls_map/10
