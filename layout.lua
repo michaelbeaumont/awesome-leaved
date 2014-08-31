@@ -9,7 +9,7 @@ local table = table
 local math = math
 local awful = require "awful"
 local wibox = require "wibox"
-local keygrabber = require("awful.keygrabber")
+
 local capi =
 {
     client = client,
@@ -30,6 +30,7 @@ local layout = { name = 'leaved',
 
 -- Globals
 local debug = true
+-- alias layout.trees
 local trees = layout.trees
 
 
@@ -103,6 +104,25 @@ local function redraw(self, screen, geometry, hides)
                 remaining_fact = remaining_fact + 
                 (s.data.geometry.in_tree and s.data.geometry.fact or 0)
             end
+            --read just according to the minimum size hints
+            for _, s in ipairs(self.children) do
+                --retrieve size hints
+                local sh = s.data.geometry.hints or s:getSizeHints()
+                s.data.geometry.hints = nil
+
+                --calculate possible readjustment
+                --calculate new_f:
+                --new_f / ((rest_f - curr_f) + new_f) = hint / total
+                local rest_fact = remaining_fact - s.data.geometry.fact
+                local pc = sh[dimension] / geo[dimension]
+                local pot_fact = pc*rest_fact/(1-pc)
+                if pot_fact > s.data.geometry.fact then
+                    remaining_fact = remaining_fact
+                                     - s.data.geometry.fact
+                                     + pot_fact
+                    s.data.geometry.fact = pot_fact
+                end
+            end
             --traverse the subtree and render child nodes
             for _, s in ipairs(self.children) do
                 local sub_geo = { width=geo.width, height=geo.height,
@@ -127,24 +147,45 @@ local function redraw(self, screen, geometry, hides)
         end
         return geo
     else
-        if awful.client.floating.get(self.data.c) then
+        local c = self.data.c
+        if awful.client.floating.get(c) then
             geometry.width = 0
             geometry.height = 0
             return geometry
         end
         if geometry.width > 0 and geometry.height > 0 then
-            local border = 2*self.data.c.border_width
+            local border = 2*c.border_width
             geometry.width = geometry.width - border
             geometry.height = geometry.height - border
 
+            --take size hints into account
+            --if self.parent:isHorizontal() then
+            --    dimension = "width"
+            --else
+            --    dimension = "height"
+            --end
+            --local size_hints = c.size_hints
+            --local size_hint = size_hints["min_"..dimension] or size_hints["base_"..dimension] or 0
+            --geometry[dimension] = math.max(size_hint, geometry[dimension])
+
+            --apply geometry
             geometry = self.data.c:geometry(geometry)
+
+            --use last used geometry for stashing hidden clients
             hides.space = geometry
+
+            --add back borders for reporting used size
             geometry.width = geometry.width + border
             geometry.height = geometry.height + border
+
         elseif self.data.geometry.in_tree then
+            --self.data.geometry.minimized = true
+            --c.minimized = true
+            --self.data.geometry.minimized = false
             --horrible hack due to wiboxes otherwise being under all windows
-            table.insert(hides, self.data.c)
+            table.insert(hides, c)
         end
+
         return geometry
     end
 end

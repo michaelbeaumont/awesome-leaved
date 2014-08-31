@@ -171,6 +171,24 @@ function Guitree:getLastFocusedClient()
     return node.data.c
 end
 
+--
+function Guitree:getSizeHints()
+    local sh = {width=0, height=0}
+    if self.tip then
+        local size_hints = self.data.c.size_hints
+        sh.width = size_hints["min_width"] or size_hints["base_width"] or 0
+        sh.height = size_hints["min_height"] or size_hints["base_height"] or 0
+    else
+        for _, n in ipairs(self.children) do
+            local sub_sh = n:getSizeHints()
+            sh.width = math.max(sub_sh.width, sh.width)
+            sh.height = math.max(sub_sh.height, sh.height)
+        end
+    end
+    self.data.geometry.hints = sh
+    return sh
+end
+
 function Guitree:scaleNode(pc, direction)
     if not self.parent then
         return
@@ -217,13 +235,7 @@ local function change_visibles(node, adder)
     end
 end
 
-local function descendMinimize(urnode, min, real)
-    local function f1(node)
-        node.data.geometry.minimized = min
-    end
-    local function f2(node)
-        if node.tip then node.data.c.minimized = min end
-    end
+local function descendMinimize(urnode, min) --, real)
     --node.data.geometry.minimized = min
     --if node.tip then
     --    if real then
@@ -238,8 +250,10 @@ local function descendMinimize(urnode, min, real)
     --        descendMinimize(c, min, true)
     --    end
     --end
-    urnode:traverse(f1)
-    urnode:traverse(f2)
+    urnode:traverse(function(node) node.data.geometry.minimized = min end)
+    urnode:traverse(function(node)
+        if node.tip then node.data.c.minimized = min end
+    end)
 end
 
 --make the tree "ignore" this node so to speak
@@ -270,10 +284,10 @@ function Guitree:focus(node)
         if not self.parent.data.geometry.in_tree then
             --make our parent visible and not minimized if it's not
             self.parent:setIgnore(false, false)
-        elseif self.parent.data.geometry.minimized then
+        --elseif self.parent.data.geometry.minimized then
             --we are the highest minimized ancestor
             --unminimize ourselves and children
-            descendMinimize(self.parent, false)
+            --descendMinimize(self.parent, false)
         end
     end
     --we must focus all of our parents
