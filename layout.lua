@@ -144,6 +144,7 @@ local function redraw(self, screen, geometry, hides)
                 end
             end
             geo[dimension] = used
+            self.data.geometry.last = geo
         end
         return geo
     else
@@ -171,6 +172,7 @@ local function redraw(self, screen, geometry, hides)
             --apply geometry
             geometry = self.data.c:geometry(geometry)
 
+            self.data.geometry.last = geometry
             --use last used geometry for stashing hidden clients
             hides.space = geometry
 

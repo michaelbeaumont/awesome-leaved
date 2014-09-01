@@ -104,98 +104,149 @@ function keys.scaleV(pc)
     return keys.scale(pc, Guitree.vert)
 end
 
-local function select_client(callback)
-    local cls_map = {}
-    local screen = capi.mouse.screen
-    local tag = awful.tag.selected(screen)
-    local lastFocus = awful.client.focus.history.get(1, 0)
-    local p = function() return true end
-    local f = function(node, level)
-        if node.tip then
-            local c_geo = node.data.c:geometry()
+local function make_keygrabber(screen, cls_map, callback)
+    local digits = cls_map.digits
 
-            local label = wibox.widget.textbox()
-            label:set_ellipsize('none')
-            label:set_align('center')
-            label:set_valign('center')
+    local keys = {}
 
-            local font_size = c_geo.height
-            local wi, he = c_geo.width, c_geo.height
-            while wi >= c_geo.width or he >= c_geo.height do
-                
-                font_size = font_size/2
-                local font = "sans " .. font_size
-                local text = {"<span font_desc='"..font.."'>"}
-                table.insert(text, #cls_map+1)
-                table.insert(text, "</span>")
-
-                --TODO wibox only on one tag
-                label:set_markup(table.concat(text))
-
-                wi, he = label:fit(c_geo.width, c_geo.height)
-            end
-            local geo = { 
-                height=he,
-                width=wi,
-                x = c_geo.x + c_geo.width/2 - wi/2,
-                y = c_geo.y + c_geo.height/2 - he/2
-            }
-
-            local box = wibox({screen = screen,
-                               ontop=true,
-                               visible=true,
-                               opacity=0.3})
-
-            box:set_widget(label)
-            box:geometry(geo)
-
-            table.insert(cls_map, {node=node, label=box})
-            if node.data.c == lastFocus then
-                cls_map.current = #cls_map
+    local function hide_others(choice)
+        for k, c in pairs(cls_map) do
+            if tonumber(k)
+                and not (tostring(k):find(choice) or choice:find(k)) then
+                c.label.visible = false
             end
         end
     end
-    if layout.trees[tag] then
-        layout.trees[tag].top:traverse(f, p, 0)
-    end
 
-    local res = #cls_map/10
-    local digits = 1
-    while res >= 1 do
-        res = res/10
-        digits = digits + 1
-    end
-
-    local keys = {}
     local collect
     collect = keygrabber.run(function(mod, key, event)
         if event == "release" then return end
 
-        --TODO hide all clients that can't be selected after this key
-        --ie 1 is pressed show only 1, 10, 11, etc
         dbg_print("Got key: " .. key)
+        local choice
         if tonumber(key) then
             table.insert(keys, tonumber(key)) 
             if #keys < digits then
                 dbg_print("Waiting for more keys")
+                choice = table.concat(keys)
+                hide_others(choice)
                 return 
             end
         elseif key ~= "Return" and key ~= "KP_Enter" then
             keys = {}
         end
         keygrabber.stop(collect)
-        local choice = tonumber(table.concat(keys))
+        choice = table.concat(keys)
         if choice then
             dbg_print("Chosen: " .. choice)
-            callback(cls_map[cls_map.current].node, cls_map[choice].node)
-            --force rearrange
-            awful.layout.arrange(screen)
+            if cls_map[choice] then
+                callback(cls_map[cls_map.current].node, cls_map[choice].node)
+                --force rearrange
+                awful.layout.arrange(screen)
+            end
         end
-        for i, c in ipairs(cls_map) do
-            c.label.visible = false
+        for k, c in pairs(cls_map) do
+            if tonumber(k) then
+                c.label.visible = false
+            end
         end
     end)
 end
+
+local function select_node(callback, label_containers, only_containers)
+    local cls_map = {curr={}, digits=0}
+    cls_map.curr[0] = 0
+    local screen = capi.mouse.screen
+    local tag = awful.tag.selected(screen)
+    local lastFocus = awful.client.focus.history.get(1, 0)
+    local function wrap_text(text, size)
+        local font = "sans " .. size
+        local wrapped = {"<span color='#ffffff' font_desc='"..font.."'>"}
+        table.insert(wrapped, text)
+        table.insert(wrapped, "</span>")
+        return table.concat(wrapped)
+    end
+    local function p() return true end
+    local function make_box(c_geo, node, name)
+
+        local label = wibox.widget.textbox()
+        label:set_ellipsize('none')
+
+        local font_size
+        local wi, he = c_geo.width, c_geo.height
+        if not node.tip then
+            label:set_align('left')
+            label:set_valign('top')
+            wi = c_geo.width*0.9
+            he = c_geo.height*0.9
+            local text = wrap_text(name, 16)
+            label:set_markup(text)
+        else
+            label:set_align('center')
+            label:set_valign('center')
+            font_size = c_geo.height
+            while wi >= c_geo.width or he >= c_geo.height do
+
+                font_size = font_size/2
+                local text = wrap_text(name, font_size)
+
+                --TODO wibox only on one tag
+                label:set_markup(text)
+
+                wi, he = label:fit(c_geo.width, c_geo.height)
+            end
+        end
+        local geo = { 
+            height=he,
+            width=wi,
+            x = c_geo.x + c_geo.width/2 - wi/2,
+            y = c_geo.y + c_geo.height/2 - he/2
+        }
+
+        local box = wibox({screen = screen,
+                           ontop=true,
+                           visible=true})
+
+        box:set_widget(label)
+        box:geometry(geo)
+        local color = '#000000'
+        local alpha = '44'
+        box:set_bg(color .. alpha)
+
+
+        cls_map[name] = {node=node, label=box}
+        if node.data.c == lastFocus then
+            cls_map.current = name
+        end
+
+        return box
+    end
+    local function f(node, level)
+        local name = cls_map.curr[level] or cls_map.curr[level-1]*10
+        name = name+1
+        cls_map.curr[level] = name
+        cls_map.digits = math.max(cls_map.digits, level+1)
+        if (node.tip and not only_containers)
+            or (not node.tip 
+                and label_containers) then
+            if node:isOrdered() then
+                --handle ordered containers
+                make_box(node.data.geometry.last, node, tostring(name))
+            else
+                make_box(node.data.geometry.last, node, tostring(name))
+            end
+        end
+    end
+    if layout.trees[tag] then
+        layout.trees[tag].top:traverse(f)
+    end
+
+    make_keygrabber(screen, cls_map, callback)
+end
+
+local function select_all(callback) select_node(callback, true, false) end
+local function select_client(callback) select_node(callback, false, false) end
+local function select_cont(callback) select_node(callback, false, true) end
 
 function keys.swap()
     local function c(current, choice)
@@ -204,11 +255,17 @@ function keys.swap()
     select_client(c)
 end
 
-function keys.focus()
+function keys.focus(all)
     local function c(current, choice)
-        capi.client.focus = choice.data.c
+        capi.client.focus = choice:getLastFocusedClient()
     end
-    select_client(c)
+    if all then
+        return utils.partial(select_all, c)
+    elseif all == nil then
+        select_client(c)
+    else
+        return utils.partial(select_client, c)
+    end
 end
 
 return keys
