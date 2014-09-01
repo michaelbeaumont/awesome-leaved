@@ -66,6 +66,10 @@ To select a client with the keyboard, use `focus`:
 
     awful.key({ modkey }, ";", leaved.focus)
 
+or (to allow focusing containers as well)
+
+    awful.key({ modkey }, ";", leaved.focus(true))
+
 To minimize an entire container, use `minContainer`:
 
     awful.key({ modkey, "Shift" }, "n", leaved.keys.minContainer)
@@ -77,6 +81,7 @@ This project is incomplete, there are a couple (a lot of) things missing and jus
 
 * Display selected containers with styling in tabboxes
 * Honor client size minimums
+* Allowing changing how nodes are labelled when using swap/focus
 * Add mouse scaling support
 * And more
 
