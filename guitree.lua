@@ -11,6 +11,7 @@ Guitree.super = Rosetree
 
 Guitree.vert = 'V'
 Guitree.horiz = 'H'
+Guitree.opp = 'opp'
 Guitree.stack = 'stack'
 Guitree.tabs = 'tabs'
 

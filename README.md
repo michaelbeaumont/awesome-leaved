@@ -33,10 +33,11 @@ To switch the orientation of the current container use `horizontalize` and `vert
     awful.key({ modkey }, "h", leaved.horizontalize),
     awful.key({ modkey }, "v", leaved.verticalize),
 
-To force the current container to split in a certain direction, bind the following functions:
+To force the current container to split in a certain direction, bind any or all of the following functions:
 
-    awful.key({ modkey, "Shift" }, "h", leaved.splitH),
-    awful.key({ modkey, "Shift" }, "v", leaved.splitV),
+    awful.key({ modkey, "Shift" }, "h", leaved.splitH), --split next horizontal
+    awful.key({ modkey, "Shift" }, "v", leaved.splitV), --split next vertical
+    awful.key({ modkey, "Shift" }, "o", leaved.splitOpp), --split in opposing direction
 
 To switch between no tabs, tabs and stack use `reorder`:
 

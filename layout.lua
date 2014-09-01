@@ -174,7 +174,6 @@ local function redraw(self, screen, geometry, hides)
 
             self.data.geometry.last = geometry
             --use last used geometry for stashing hidden clients
-            hides.space = geometry
 
             --add back borders for reporting used size
             geometry.width = geometry.width + border
@@ -192,6 +191,13 @@ local function redraw(self, screen, geometry, hides)
     end
 end
 
+local function prefer_equal()
+       
+end
+
+local function prefer_equal_get_next_orient(current, forceNext)
+    
+end
 
 function layout.arrange(p)
     if layout.arrange_lock then
@@ -245,15 +251,24 @@ function layout.arrange(p)
                 local newClient = Guitree:newClient(c)
 
                 if lastFocusNode then
+                    local lastFocusOrientation = lastFocusParent:getOrientation()
                     if not nextOrient then
                         if (lastFocusGeo.width <= lastFocusGeo.height) then
                             nextOrient = Guitree.vert
                         else
                             nextOrient = Guitree.horiz
                         end
+                    elseif nextOrient == Guitree.opp then
+                        if lastFocusOrientation == Guitree.horiz then
+                            nextOrient = Guitree.vert
+                        elseif lastFocusOrientation == Guitree.vert then
+                            nextOrient = Guitree.horiz
+                        else
+                            nextOrient = lastFocusOrientation
+                        end
                     end
                     
-                    if lastFocusParent:getOrientation() ~= nextOrient then
+                    if lastFocusOrientation ~= nextOrient then
                         lastFocusNode:add(newClient)
                         lastFocusNode:setOrientation(nextOrient)
                     else

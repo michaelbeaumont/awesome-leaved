@@ -27,6 +27,7 @@ local keys = { }
 --Additional functions for keybindings
 function keys.splitH() layout.forceNextOrient = Guitree.horiz end
 function keys.splitV() layout.forceNextOrient = Guitree.vert end
+function keys.splitOpp() layout.forceNextOrient = Guitree.opp end
 
 local function change_focused(changer)
     --get all the boring local variables
