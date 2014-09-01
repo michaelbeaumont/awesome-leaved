@@ -83,9 +83,9 @@ function Rosetree:pullupTip()
 end
 
 function Rosetree:swap(node)
-    if node == self then return end
     local own_par = self.parent
     local node_par = node.parent
+    if node == self or not own_par or not node_par then return end
     local ni, oi
     for i, c in ipairs(own_par.children) do
         if c == self then
