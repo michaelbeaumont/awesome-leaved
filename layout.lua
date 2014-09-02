@@ -29,7 +29,7 @@ local layout = { name = 'leaved',
     arrange_lock = false}
 
 -- Globals
-local debug = true
+local debug = {info=false, fine=false}
 -- alias layout.trees
 local trees = layout.trees
 
@@ -108,6 +108,9 @@ local function redraw(self, screen, geometry, hides)
             for _, s in ipairs(self.children) do
                 --retrieve size hints
                 local sh = s.data.geometry.hints or s:getSizeHints()
+                if debug.fine then
+                  print("Size hints: w: " .. sh.width .. " h: " .. sh.height)
+                end
                 s.data.geometry.hints = nil
 
                 --calculate possible readjustment
@@ -305,7 +308,7 @@ function layout.arrange(p)
         c:lower()
     end
 
-    if debug then top:show() end
+    if debug.info then top:show() end
 
     layout.arrange_lock = false
 end

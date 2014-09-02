@@ -182,8 +182,16 @@ function Guitree:getSizeHints()
     else
         for _, n in ipairs(self.children) do
             local sub_sh = n:getSizeHints()
-            sh.width = math.max(sub_sh.width, sh.width)
-            sh.height = math.max(sub_sh.height, sh.height)
+            local dim
+            if self:isHorizontal() then
+                dim = "width"
+                other = "height"
+            else
+                dim = "height"
+                other = "width"
+            end
+            sh[dim] = sh[dim] + sub_sh[dim]
+            sh[other] = math.max(sub_sh[other], sh[other])
         end
     end
     self.data.geometry.hints = sh
