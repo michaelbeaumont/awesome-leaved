@@ -3,6 +3,7 @@ local ipairs, pairs = ipairs, pairs
 local setmetatable = setmetatable
 local table = table
 local math = math
+local awesome = awesome
 local awful = require "awful"
 local wibox = require "wibox"
 local keygrabber = require("awful.keygrabber")
@@ -185,7 +186,7 @@ local function select_node(callback, label_containers, only_containers)
         else
             label:set_align('center')
             label:set_valign('center')
-            font_size = c_geo.height
+            font_size = c_geo.height/1.5
             while wi >= c_geo.width or he >= c_geo.height do
 
                 font_size = font_size/2
@@ -198,12 +199,14 @@ local function select_node(callback, label_containers, only_containers)
             end
         end
         local geo = { 
-            height=he,
-            width=wi,
             x = c_geo.x + c_geo.width/2 - wi/2,
             y = c_geo.y + c_geo.height/2 - he/2
         }
-
+        if not node.tip and not awesome.composite_manager_running then
+            wi, he = label:fit(c_geo.width, c_geo.height)
+        end
+        geo.width = wi
+        geo.height = he
         local box = wibox({screen = screen,
                            ontop=true,
                            visible=true})
@@ -211,7 +214,12 @@ local function select_node(callback, label_containers, only_containers)
         box:set_widget(label)
         box:geometry(geo)
         local color = '#000000'
-        local alpha = '44'
+        local alpha
+        if awesome.composite_manager_running then
+            alpha = '44'
+        else
+            alpha = 'ff'
+        end
         box:set_bg(color .. alpha)
 
 
