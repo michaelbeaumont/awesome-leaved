@@ -1,21 +1,28 @@
 local utils = {}
 
+function utils.logger(level)
+    local levels = {off=0, info=30, fine=50}
+    local l = {level=level}
+    l.mt = {}
+    l.mt.__index = function(table, key)
+        if not levels[key] or not levels[table.level] then
+            error("Logging level not found")
+        end
+        return levels[key] <= levels[table.level]
+    end
+    l.print = function(level, ...)
+        if l[level] then
+            print(...)
+        end
+    end
+    return setmetatable(l, l.mt)
+end
+
 --little utility functions
 function utils.partial(f, ...)
     local oarg = {...}
     return function(...)
         f(unpack(oarg), unpack({...}))
-    end
-end
-
-function utils.dbg(f)
-    if debug then
-        print(f())
-    end
-end
-function utils.dbg_print(...)
-    if debug then
-        print(...)
     end
 end
 

@@ -20,8 +20,9 @@ local Guitree = require "awesome-leaved.guitree"
 local Tabbox = require "awesome-leaved.tabbox"
 local layout = require "awesome-leaved.layout"
 local utils = require "awesome-leaved.utils"
-local dbg_print = utils.dbg_print
 local partial = utils.partial
+
+local logger = utils.logger('info')
 
 local keys = { }
 
@@ -124,12 +125,12 @@ local function make_keygrabber(screen, cls_map, callback)
     collect = keygrabber.run(function(mod, key, event)
         if event == "release" then return end
 
-        dbg_print("Got key: " .. key)
+        logger.print("fine", "Got key: " .. key)
         local choice
         if tonumber(key) then
             table.insert(keys, tonumber(key)) 
             if #keys < digits then
-                dbg_print("Waiting for more keys")
+                logger.print("fine", "Waiting for more keys")
                 choice = table.concat(keys)
                 hide_others(choice)
                 return 
@@ -140,7 +141,7 @@ local function make_keygrabber(screen, cls_map, callback)
         keygrabber.stop(collect)
         choice = table.concat(keys)
         if choice then
-            dbg_print("Chosen: " .. choice)
+            logger.print("fine", "Chosen: " .. choice)
             if cls_map[choice] then
                 callback(cls_map[cls_map.current].node, cls_map[choice].node)
                 --force rearrange
@@ -255,7 +256,7 @@ end
 
 local function select_all(callback) select_node(callback, true, false) end
 local function select_client(callback) select_node(callback, false, false) end
-local function select_cont(callback) select_node(callback, false, true) end
+local function select_container(callback) select_node(callback, false, true) end
 
 function keys.swap()
     local function c(current, choice)
@@ -277,4 +278,13 @@ function keys.focus(all)
     end
 end
 
+function keys.select_active_container()
+    --select container
+    --select orientation (show with overlays)
+    --then next window created is added accordingly
+    local function c(current, choice)
+        layout.active_container = choice 
+    end
+    select_container(c)
+end
 return keys
