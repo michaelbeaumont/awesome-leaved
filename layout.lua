@@ -24,9 +24,9 @@ local Tabbox = require "awesome-leaved.tabbox"
 local utils = require "awesome-leaved.utils"
 
 local layout = { name = 'leaved',
-    trees = {},
-    forceNextOrient = nil,
-    arrange_lock = false}
+                 trees = {},
+                 forceNextOrient = nil,
+                 arrange_lock = false}
 
 -- Globals
 local logger = utils.logger('info')
@@ -37,10 +37,10 @@ local trees = layout.trees
 --draw and arrange functions
 local function redraw(self, screen, geometry, hides)
     if not self.tip then
-        local maximized = self.data.max.h and self.data.max.v
+        local maximized = self.data.geometry.max.h and self.data.geometry.max.v
         local geo = maximized and screen.workarea or geometry
 
-        if not self.data.geometry.in_tree then
+        if not self:inTree() then
             geo.width = 0
             geo.height = 0
         end
@@ -61,7 +61,7 @@ local function redraw(self, screen, geometry, hides)
         --if we are tabbed or stacked then render only the focused node
         if self:isOrdered() then
             for _, s in ipairs(self.children) do
-                if s.data.geometry.in_tree then
+                if s:inTree() then
                     local sub_geo = { x=geometry.x, y=geometry.y }
                     if self.data.lastFocus ~= s then
                         sub_geo.width = 0
@@ -102,7 +102,7 @@ local function redraw(self, screen, geometry, hides)
             --figure out how many windows will be rendered
             for _, s in ipairs(self.children) do
                 remaining_fact = remaining_fact + 
-                (s.data.geometry.in_tree and s.data.geometry.fact or 0)
+                (s:inTree() and s.data.geometry.fact or 0)
             end
             --read just according to the minimum size hints
             for _, s in ipairs(self.children) do
@@ -130,8 +130,8 @@ local function redraw(self, screen, geometry, hides)
             for _, s in ipairs(self.children) do
                 local sub_geo = { width=geo.width, height=geo.height,
                                     x=geo.x, y=geo.y }
-                if s.data.geometry.in_tree then
-                    local sub_fact = s.data.geometry.in_tree and s.data.geometry.fact or 0
+                if s:inTree() then
+                    local sub_fact = s:inTree() and s.data.geometry.fact or 0
                     sub_geo[invariant] = geo[invariant]
                     sub_geo[offset] = current_offset
                     sub_geo[dimension] = math.floor(sub_fact/remaining_fact*unused)
@@ -155,6 +155,7 @@ local function redraw(self, screen, geometry, hides)
         if awful.client.floating.get(c) then
             geometry.width = 0
             geometry.height = 0
+            self.data.geometry.last = self.data.c:geometry()
             return geometry
         end
         if geometry.width > 0 and geometry.height > 0 then
@@ -182,7 +183,7 @@ local function redraw(self, screen, geometry, hides)
             geometry.width = geometry.width + border
             geometry.height = geometry.height + border
 
-        elseif self.data.geometry.in_tree then
+        elseif self:inTree() then
             --self.data.geometry.minimized = true
             --c.minimized = true
             --self.data.geometry.minimized = false

@@ -22,10 +22,10 @@ local function default_container()
         lastFocus=nil,
         tabbox=nil,
         label="",
-        max = {h = false, v = false},
         geometry = { fact = 1,
-                     in_tree = true,
+                     floating = false,
                      minimized = false,
+                     max = {h = false, v = false},
                      visibles = 0 },
         callbacks={}
     }
@@ -37,7 +37,7 @@ function Guitree:newClient(c)
         lastFocus=c,
         label=c.name,
         geometry = { fact = 1,
-                     in_tree = true,
+                     floating = false,
                      minimized = false},
         callbacks={}
     }
@@ -57,29 +57,29 @@ function Guitree:newTip(data)
     callbacks['property::sticky']=u
     callbacks['property::ontop']=u
     callbacks['property::floating']=function()
-        newNode:setIgnore(client.floating.get(newNode.data.c))
+        newNode:float(client.floating.get(newNode.data.c))
         u()
     end
     callbacks['property::maximized_horizontal']=function()
-        local maxd = newNode.data.c.maximized_horizontal
-        if newNode.data.geometry.in_tree ~= not maxd then
-            newNode:setIgnore(maxd)
-        end
+        --local maxd = newNode.data.c.maximized_horizontal
+        --if newNode.data.geometry.in_tree ~= not maxd then
+            --newNode:setIgnore(maxd)
+        --end
         u()
     end
     callbacks['property::maximized_vertical']=function()
-        local maxd = newNode.data.c.maximized_vertical
-        if newNode.data.geometry.in_tree ~= not maxd then
-            newNode:setIgnore(maxd)
-        end
+        --local maxd = newNode.data.c.maximized_vertical
+        --if newNode.data.geometry.in_tree ~= not maxd then
+            --newNode:setIgnore(maxd)
+        --end
         u()
     end
     callbacks['property::minimized']=function()
         local mind = newNode.data.c.minimized
-        if newNode.data.geometry.minimized ~= mind 
-            and newNode.data.geometry.in_tree ~= mind then
-            newNode:setIgnore(mind, mind)
-        end
+        --if newNode.data.geometry.minimized ~= mind then
+            --and newNode.data.geometry.in_tree == mind then
+            newNode:minimize(mind)
+        --end
         u()
     end
     callbacks['property::name']=u
@@ -88,6 +88,7 @@ function Guitree:newTip(data)
     callbacks['property::skip_taskbar']=u
     callbacks['property::screen']=u
     callbacks['property::hidden']=u
+    --TODO add arrange on size_hints changed
     callbacks['focus']=function() 
         local mind = newNode.data.c.minimized
         if newNode.data.geometry.minimized == mind then
@@ -163,6 +164,11 @@ end
 function Guitree:isVertical()
     return self.data.orientation == Guitree.vert
 end
+function Guitree:inTree()
+    return not self.data.geometry.minimized
+        and not self.data.geometry.floating
+        and self.data.geometry.visibles ~= 0
+end
 
 function Guitree:getLastFocusedClient()
     local node = self.data.lastFocus
@@ -231,74 +237,75 @@ local function reset_last_focused(node)
     end
 end
 
-local function change_visibles(node, adder)
+local function change_visibles(node, num_changed)
     local geo = node.data.geometry
-    geo.visibles = geo.visibles + adder
+    geo.visibles = geo.visibles + num_changed
     reset_last_focused(node)
-    if geo.visibles == 0 and adder < 0 then
-        geo.in_tree = false
+    if geo.visibles == 0 and num_changed < 0 then
         if node.parent then change_visibles(node.parent, -1) end
-    elseif geo.visibles == 1 and adder > 0 then
-        geo.in_tree = true
+    elseif geo.visibles == 1 and num_changed > 0 then
         if node.parent then change_visibles(node.parent, 1) end
     end
 end
 
 local function descendMinimize(urnode, min) --, real)
-    --node.data.geometry.minimized = min
-    --if node.tip then
-    --    if real then
-    --        print("setting real min")
-    --        node.data.c.minimized = min
-    --    end
-    --else
-    --    for _, c in ipairs(node.children) do
-    --        descendMinimize(c, min, false)
-    --    end
-    --    for _, c in ipairs(node.children) do
-    --        descendMinimize(c, min, true)
-    --    end
-    --end
-    urnode:traverse(function(node) node.data.geometry.minimized = min end)
     urnode:traverse(function(node)
-        if node.tip then node.data.c.minimized = min end
+        node.data.geometry.minimized = min
+        --node.data.geometry.in_tree = min
+    end)
+    urnode:traverse(function(node)
+        if node.tip then 
+            node.data.c.minimized = min
+        end
     end)
 end
 
 --make the tree "ignore" this node so to speak
-function Guitree:setIgnore(val, min)
+function Guitree:float(val)
     local geo = self.data.geometry
-    local changed = geo.in_tree ~= not val
-    geo.in_tree = not val
-    if self.parent and changed then 
-        change_visibles(self.parent, geo.in_tree and 1 or -1)
+    local changed = geo.floating ~= val
+    geo.floating = val
+    if self.parent and changed then
+        change_visibles(self.parent, geo.floating and 1 or -1)
     end
-    --if geo.in_tree and self.parent then
+end
+
+function Guitree:minimize(val)
+    local geo = self.data.geometry
+    local changed = geo.minimized ~= val
+    if changed then
+        if self.parent then
+            if self.parent.data.geometry.minimized and not val then
+                self.parent:minimize(val)
+            else
+                change_visibles(self.parent, geo.minimized and 1 or -1)
+            end
+        end
+        descendMinimize(self, val)
+    end
+        --if geo.in_tree and self.parent then
         --self.parent.data.lastFocus = self
-    --end
-    if geo.in_tree and geo.minimized then
-        descendMinimize(self, false)
-    elseif min then
-        descendMinimize(self, true)
-    end
+        --end
 end
 
 function Guitree:focus(node)
     --do nothing when focusing "ignored" and not minimized clients
     --i.e. floating clients
-    if (not self.data.geometry.in_tree 
+    if (not self:inTree()
         and not self.data.geometry.minimized) then
         return
-    elseif self.parent then
-        if not self.parent.data.geometry.in_tree then
+    end
+    --elseif self.parent then
+        --if not self:inTree() then
             --make our parent visible and not minimized if it's not
-            self.parent:setIgnore(false, false)
+            --self.parent:setIgnore(false, false)
+            --self.parent:minimized(false)
         --elseif self.parent.data.geometry.minimized then
             --we are the highest minimized ancestor
             --unminimize ourselves and children
             --descendMinimize(self.parent, false)
-        end
-    end
+        --end
+    --end
     --we must focus all of our parents
     if self.data.tabbox then
         self.data.tabbox.container.visible = true
@@ -326,7 +333,7 @@ function Guitree:add(child, ind)
     child:refreshLabel()
 
     self.data.lastFocus = child
-    if child.data.geometry.in_tree then
+    if child:inTree() then
         self.data.geometry.visibles = self.data.geometry.visibles + 1
     end
 end
@@ -481,10 +488,10 @@ function Guitree:show(level)
         local output, name
         if node.tip then
             name = "Client["
-            output = tostring(node.data.c.window .. "| #: " .. node.data.geometry.fact .. "|" .. tostring(node) .. "| IT: " .. tostring(node.data.geometry.in_tree))
+            output = tostring(node.data.c.window .. "| #: " .. node.data.geometry.fact .. "|" .. tostring(node) .. "| IT: " .. tostring(node:inTree()))
         else
             name = "Container["
-            output = tostring(tostring(node) .. ":" .. node.data.orientation .. ' ' .. #node.children .. "|" .. "Size: " .. node.data.geometry.fact .. "| LF: " .. tostring(node.data.lastFocus) .. "| Vis: " .. node.data.geometry.visibles .. "| IT: " .. tostring(node.data.geometry.in_tree))
+            output = tostring(tostring(node) .. ":" .. node.data.orientation .. ' ' .. #node.children .. "|" .. "Size: " .. node.data.geometry.fact .. "| LF: " .. tostring(node.data.lastFocus) .. "| Vis: " .. node.data.geometry.visibles .. "| IT: " .. tostring(node:inTree()))
         end
         print(string.rep(" ", level) .. name .. output .. "]")
     end

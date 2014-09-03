@@ -49,7 +49,7 @@ end
 function keys.minContainer()
     change_focused(function(node) 
         layout.arrange_lock = true
-        node.parent:setIgnore(true, true)
+        node.parent:minimize(true)
         layout.arrange_lock = false
     end)
 end
