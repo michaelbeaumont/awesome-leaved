@@ -22,6 +22,7 @@ local function default_container()
         lastFocus=nil,
         tabbox=nil,
         label="",
+        focused = false,
         geometry = { fact = 1,
                      floating = false,
                      minimized = false,
@@ -61,25 +62,13 @@ function Guitree:newTip(data)
         u()
     end
     callbacks['property::maximized_horizontal']=function()
-        --local maxd = newNode.data.c.maximized_horizontal
-        --if newNode.data.geometry.in_tree ~= not maxd then
-            --newNode:setIgnore(maxd)
-        --end
         u()
     end
     callbacks['property::maximized_vertical']=function()
-        --local maxd = newNode.data.c.maximized_vertical
-        --if newNode.data.geometry.in_tree ~= not maxd then
-            --newNode:setIgnore(maxd)
-        --end
         u()
     end
     callbacks['property::minimized']=function()
-        local mind = newNode.data.c.minimized
-        --if newNode.data.geometry.minimized ~= mind then
-            --and newNode.data.geometry.in_tree == mind then
-            newNode:minimize(mind)
-        --end
+        newNode:minimize(newNode.data.c.minimized)
         u()
     end
     callbacks['property::name']=u
@@ -96,7 +85,10 @@ function Guitree:newTip(data)
         end
         u()
     end
-    callbacks['unfocus']=u
+    callbacks['unfocus']=function()
+        newNode:unfocus()
+        u()
+    end
         
     for k, v in pairs(callbacks) do
         c:connect_signal(k, v)
@@ -295,18 +287,8 @@ function Guitree:focus(node)
         and not self.data.geometry.minimized) then
         return
     end
-    --elseif self.parent then
-        --if not self:inTree() then
-            --make our parent visible and not minimized if it's not
-            --self.parent:setIgnore(false, false)
-            --self.parent:minimized(false)
-        --elseif self.parent.data.geometry.minimized then
-            --we are the highest minimized ancestor
-            --unminimize ourselves and children
-            --descendMinimize(self.parent, false)
-        --end
-    --end
     --we must focus all of our parents
+    self.data.focused = true
     if self.data.tabbox then
         self.data.tabbox.container.visible = true
     end
@@ -314,6 +296,10 @@ function Guitree:focus(node)
         self.parent:focus(self)
     end
     self.data.lastFocus = node or self
+end
+function Guitree:unfocus()
+    self.data.focused = false
+    if self.parent then self.parent:unfocus() end
 end
 
 
@@ -356,7 +342,7 @@ end
 
 --Generating labels for nodes
 --Taken from awful.widget.tasklist
-local function tasklist_label(c, args)
+local function tasklist_label(node, args)
     if not args then args = {} end
     local theme = beautiful.get()
     local fg_normal = args.fg_normal or theme.tasklist_fg_normal or theme.fg_normal or "#ffffff"
@@ -379,26 +365,53 @@ local function tasklist_label(c, args)
     local bg_image = nil
 
     -- symbol to use to indicate certain client properties
-    local sticky = args.sticky or theme.tasklist_sticky or "▪"
-    local ontop = args.ontop or theme.tasklist_ontop or '⌃'
-    local floating = args.floating or theme.tasklist_floating or '✈'
-    local maximized_horizontal = args.maximized_horizontal or theme.tasklist_maximized_horizontal or '⬌'
-    local maximized_vertical = args.maximized_vertical or theme.tasklist_maximized_vertical or '⬍'
+    local sticky_c = args.sticky or theme.tasklist_sticky or "▪"
+    local ontop_c = args.ontop or theme.tasklist_ontop or '⌃'
+    local floating_c = args.floating or theme.tasklist_floating or '✈'
+    local maximized_horizontal_c = args.maximized_horizontal or theme.tasklist_maximized_horizontal or '⬌'
+    local maximized_vertical_c = args.maximized_vertical or theme.tasklist_maximized_vertical or '⬍'
+
+    local sticky = (node.tip and node.data.c.sticky)
+    local ontop = (node.tip and node.data.c.ontop)
+    local floating = (node.tip and client.floating.get(node.data.c))
+    local max_h = (node.tip and node.data.c.maximized_horizontal)
+    local max_v = (node.tip and node.data.c.maximized_vertical)
+    local min = (node.tip and node.data.c.minimized)
+             or (not node.tip and node.data.geometry.minimized)
+    local focused = (node.tip and capi.client.focus == node.data.c)
+             or (not node.tip and node.data.focused)
+    local urgent = (node.tip and node.data.c.urgent)
 
     if not theme.tasklist_plain_task_name then
-        if c.sticky then name = name .. sticky end
-        if c.ontop then name = name .. ontop end
-        if client.floating.get(c) then name = name .. floating end
-        if c.maximized_horizontal then name = name .. maximized_horizontal end
-        if c.maximized_vertical then name = name .. maximized_vertical end
+        if sticky then name = name .. sticky_c end
+        if ontop then name = name .. ontop_c end
+        if floating then name = name .. floating_c end
+        if max_h then name = name .. maximized_horizontal_c end
+        if max_v then name = name .. maximized_vertical_c end
     end
 
-    if c.minimized then
-        name = name .. (util.escape(c.icon_name) or util.escape(c.name) or util.escape("<untitled>"))
+    --build title for node
+    if not node.tip then
+        local labels = {}
+
+        labels[1] = node:getOrientation() .. " ["
+        
+        for i, c in ipairs(node.children) do
+            labels[i+1] = c.data.label
+        end
+        table.insert(labels, "]")
+
+        name = name .. table.concat(labels, " ")
     else
-        name = name .. (util.escape(c.name) or util.escape("<untitled>"))
+        local c = node.data.c
+        if min then
+            name = name .. (util.escape(c.icon_name) or util.escape(c.name) or util.escape("<untitled>"))
+        else
+            name = name .. (util.escape(c.name) or util.escape("<untitled>"))
+        end
     end
-    if capi.client.focus == c then
+    --determine colors
+    if focused then
         bg = bg_focus
         bg_image = bg_image_focus
         if fg_focus then
@@ -406,11 +419,11 @@ local function tasklist_label(c, args)
         else
             text = text .. "<span color='"..util.color_strip_alpha(fg_normal).."'>"..name.."</span>"
         end
-    elseif c.urgent and fg_urgent then
+    elseif urgent and fg_urgent then
         bg = bg_urgent
         text = text .. "<span color='"..util.color_strip_alpha(fg_urgent).."'>"..name.."</span>"
         bg_image = bg_image_urgent
-    elseif c.minimized and fg_minimize and bg_minimize then
+    elseif min and fg_minimize and bg_minimize then
         bg = bg_minimize
         text = text .. "<span color='"..util.color_strip_alpha(fg_minimize).."'>"..name.."</span>"
         bg_image = bg_image_minimize
@@ -420,37 +433,25 @@ local function tasklist_label(c, args)
         bg_image = bg_image_normal
     end
     text = text .. "</span>"
-    return text, bg, bg_image, not tasklist_disable_icon and c.icon or nil
+    return text, bg, bg_image, not tasklist_disable_icon
+                                and node.tip
+                                and node.data.c.icon
+                               or nil
 end
 
 function Guitree:refreshLabel()
-    if self.tip then
-        local text, bg, bg_image, icon = tasklist_label(self.data.c)
-        self.data.label = text
-        self.data.bg = bg
-        self.data.bg_image = bg_image
-        self.data.icon = icon
-        
+    local text, bg, bg_image, icon = tasklist_label(self)
+    self.data.label = text
+    self.data.bg = bg
+    self.data.bg_image = bg_image
+    self.data.icon = icon
+
+    if self.data.tabbox then
+        self.data.tabbox:rename(self)
+    end
+
+    if self.parent then
         self.parent:refreshLabel()
-    else
-        local labels = {}
-
-        labels[1] = self:getOrientation() .. " ["
-        
-        for i, c in ipairs(self.children) do
-            labels[i+1] = c.data.label
-        end
-        table.insert(labels, "]")
-
-        self.data.label = table.concat(labels, " ")
-
-        if self.data.tabbox then
-            self.data.tabbox:rename(self)
-        end
-
-        if self.parent then
-            self.parent:refreshLabel()
-        end
     end
 end
 
