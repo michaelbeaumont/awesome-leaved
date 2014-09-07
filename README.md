@@ -80,8 +80,8 @@ TODO
 
 This project is incomplete, there are a couple (a lot of) things missing and just as many bugs
 
-* Display selected containers with styling in tabboxes
-* Honor client size minimums
+* Configurable tree creation, i.e. tile by default
+* Display selected containers with styling in tabboxes (not complete)
 * Allowing changing how nodes are labelled when using swap/focus
 * Add mouse scaling support
 * And more
@@ -90,4 +90,5 @@ Bugs
 ----
 
 * Properly clean up on layout switch
+* Couple bugs with client size minimums, figure out better system
 * A couple display bugs after redrawing
