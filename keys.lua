@@ -22,7 +22,7 @@ local layout = require "awesome-leaved.layout"
 local utils = require "awesome-leaved.utils"
 local partial = utils.partial
 
-local logger = utils.logger('info')
+local logger = utils.logger('off')
 
 local keys = { }
 
@@ -107,6 +107,33 @@ function keys.scaleV(pc)
     return keys.scale(pc, Guitree.vert)
 end
 
+local function make_vimkeygrabber(func_map)
+    local keys = {}
+
+    local collect
+    collect = keygrabber.run(function(mod, key, event)
+        if event == "release" then return end
+
+        logger.print("fine", "Got key: " .. key)
+        local choice
+        if func_map[key] or tonumber(key) and func_map.number then
+            table.insert(keys, key) 
+            logger.print("fine", "Found callback")
+            func_map[key].callback(keys)
+            if func_map[key].wait then
+                logger.print("fine", "Keep collecting...")
+                return
+            else
+                logger.print("fine", "Finished collecting...")
+            end
+        else
+            logger.print("fine", "Found no callback")
+        end
+        keygrabber.stop(collect)
+        if func_map.cleanup then func_map.cleanup() end
+    end)
+end
+
 local function make_keygrabber(screen, cls_map, callback)
     local digits = cls_map.digits
 
@@ -143,7 +170,8 @@ local function make_keygrabber(screen, cls_map, callback)
         if choice then
             logger.print("fine", "Chosen: " .. choice)
             if cls_map[choice] then
-                callback(cls_map[cls_map.current].node, cls_map[choice].node)
+                local cur = cls_map[cls_map.current]
+                callback(cur and cur.node or nil, cls_map[choice].node)
                 --force rearrange
                 awful.layout.arrange(screen)
             end
@@ -156,19 +184,22 @@ local function make_keygrabber(screen, cls_map, callback)
     end)
 end
 
+local function wrap_text(text, size, color, font)
+    size = size or 16
+    color = color or '#ffffff'
+    font = font or "sans"
+    local wrapped = "<span color='" .. color ..
+    "' font_desc='" .. font .. " " .. size .. "'>"
+    .. text .. "</span>"
+    return wrapped
+end
+
 local function select_node(callback, label_containers, only_containers)
     local cls_map = {curr={}, digits=0}
     cls_map.curr[0] = 0
     local screen = capi.mouse.screen
     local tag = awful.tag.selected(screen)
     local lastFocus = awful.client.focus.history.get(1, 0)
-    local function wrap_text(text, size)
-        local font = "sans " .. size
-        local wrapped = {"<span color='#ffffff' font_desc='"..font.."'>"}
-        table.insert(wrapped, text)
-        table.insert(wrapped, "</span>")
-        return table.concat(wrapped)
-    end
     local function p() return true end
     local function make_box(c_geo, node, name)
 
@@ -199,7 +230,7 @@ local function select_node(callback, label_containers, only_containers)
                 wi, he = label:fit(c_geo.width, c_geo.height)
             end
         end
-        local geo = { 
+        local geo = {
             x = c_geo.x + c_geo.width/2 - wi/2,
             y = c_geo.y + c_geo.height/2 - he/2
         }
@@ -235,10 +266,11 @@ local function select_node(callback, label_containers, only_containers)
         local name = cls_map.curr[level] or cls_map.curr[level-1]*10
         name = name+1
         cls_map.curr[level] = name
-        cls_map.digits = math.max(cls_map.digits, level+1)
         if (node.tip and not only_containers)
             or (not node.tip 
                 and label_containers) then
+
+            cls_map.digits = math.max(cls_map.digits, level+1)
             if node:isOrdered() then
                 --handle ordered containers
                 make_box(node.data.geometry.last, node, tostring(name))
@@ -256,7 +288,7 @@ end
 
 local function select_all(callback) select_node(callback, true, false) end
 local function select_client(callback) select_node(callback, false, false) end
-local function select_container(callback) select_node(callback, false, true) end
+local function select_container(callback) select_node(callback, true, true) end
 
 function keys.swap()
     local function c(current, choice)
@@ -278,13 +310,105 @@ function keys.focus(all)
     end
 end
 
-function keys.select_active_container()
+function keys.select_use_container()
     --select container
     --select orientation (show with overlays)
     --then next window created is added accordingly
+    local active = {}
+    local function outline(node, box)
+        if box then box.visible = false end
+
+        local c_geo = node.data.geometry.last
+        local label = wibox.widget.textbox()
+        label:set_ellipsize('none')
+
+        local font_size
+        local wi, he = c_geo.width, c_geo.height
+        label:set_align('left')
+        label:set_valign('top')
+        wi = c_geo.width
+        he = c_geo.height
+        --local text = wrap_text(name, 16)
+        --label:set_markup(text)
+        local geo = {
+            x = c_geo.x,
+            y = c_geo.y
+        }
+        local box
+        if awesome.composite_manager_running then
+            geo.width = wi
+            geo.height = he
+            box = wibox({screen = screen,
+                               ontop=true,
+                               visible=true})
+
+            local bgb = wibox.widget.background()
+            local label = wibox.widget.textbox()
+            local frame = wibox.layout.margin(bgb, 10, 10, 10, 10)
+            box:set_widget(frame)
+            box:geometry(geo)
+            local color = '#000000'
+            box:set_bg(color .. '00')
+            bgb:set_bg(color .. '44')
+            frame:set_color(color .. '55')
+        else
+            wi, he = label:fit(c_geo.width, c_geo.height)
+        end
+
+        return box
+    end
+    local screen_index = capi.mouse.screen
+    --outline box
+    local box
+    --move clients on arrow key
+    local direction = {
+        callback=function(keys)
+            local last = keys[#keys]
+            local act_par = active.parent
+            if last == "Up" then
+                if active.parent.parent then
+                    act_par:detach(active.index)
+                    act_par.parent:add(active)
+                end
+            elseif last == "Down" then
+
+            elseif last == "Left" then
+                if active.index > 1 then
+                    active:swap(act_par.children[active.index-1])
+                end
+            elseif last == "Right" then
+                if active.index < #act_par.children then
+                    active:swap(act_par.children[active.index+1])
+                end
+            end
+            awful.layout.arrange(screen_index)
+            box = outline(active, box)
+        end,
+        wait=true}
+    --create key map
+    local map = {d = {callback=function()
+                            active:kill()
+                        end},
+                 s = {callback=function()
+                         select_container(function(_, choice)
+                                    active:swap(choice)
+                         end)
+                        end},
+                 c = {}, --change orientation
+                 Up = direction,
+                 Down = direction,
+                 Left = direction,
+                 Right = direction,
+                }
     local function c(current, choice)
         layout.active_container = choice 
+        active = choice
+
+        map.cleanup = function() box.visible = false end
+        box = outline(active)
+        make_vimkeygrabber(map)
     end
+    --select a container and start vim mode
     select_container(c)
 end
 return keys
