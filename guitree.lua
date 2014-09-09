@@ -117,6 +117,12 @@ function Guitree:destroy()
     end
 end
 
+function Guitree:kill()
+    self:traverse(function(node)
+        if node.tip then node.data.c:kill() end
+    end)
+end
+
 --Getters and setters
 function Guitree:setOrder(order)
     self.data.order = order
