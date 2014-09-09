@@ -8,6 +8,7 @@ function Rosetree:new(data, children, strong)
         node = {
             tip = true,
             data = data,
+            index = nil,
             parent = nil,
         }
     else
@@ -16,6 +17,7 @@ function Rosetree:new(data, children, strong)
             strong = strong or false,
             data = data,
             children = children,
+            index = nil,
             parent = nil,
         }
     end
@@ -40,7 +42,7 @@ function Rosetree:add(child, ind)
         self.children = {}
         local oldData = self.data
         self.data = cont.data
-        local child  = self:newTip(oldData)
+        local child = self:newTip(oldData)
         self:add(child)
     end
     --reassign parent
@@ -48,44 +50,49 @@ function Rosetree:add(child, ind)
 
     --add child
     if ind and ind <= #self.children then
+        for i=ind,#self.children do
+            self.children[i].index = i
+        end
         table.insert(self.children, ind, child)
+        child.index = ind
     else
         table.insert(self.children, child)
+        child.index = #self.children
     end
+    child.index = ind or #self.children
 end
 
-function Rosetree:pushdownTip(strong, newOwnData)
-    if self.tip then
-        self:destroy()
-        self.tip = false
-        self.strong = strong or false
-        self.children = {}
-        local oldOwnData = self.data
-        self.data = newOwnData
-        self:add(self:newTip(oldOwnData))
-        return self
+function Rosetree:detach(ind)
+    if not ind or self.tip then return end
+    for i=ind+1,#self.children do
+        self.children[i-1] = self.children[i]
+        self.children[i-1].index = i-1
     end
-end
-
-function Rosetree:pairWith(child)
-    self:pushdownTip()
-    self:add(child)
-end
-
-function Rosetree:pullupTip()
-    local child = self.children[1]
-    self:destroy()
-    return child
---    self.tip = child.tip
---    self.data = child.data
---    self.children = child.children
---    return self
+    self.children[#self.children] = nil
+    return self.children[ind]
 end
 
 function Rosetree:swap(node)
     local own_par = self.parent
     local node_par = node.parent
-    if node == self or not own_par or not node_par then return end
+    if node == self
+        or not own_par
+        or not node_par then
+        return
+    else
+        local test = self
+        local testee = node
+        local caught
+        for i = 1,2 do
+            while test and test ~= testee do
+                test = test.parent
+            end
+            caught = caught or test == testee
+            test = node
+            testee = self
+        end
+        if caught then return end
+    end
     local ni, oi
     for i, c in ipairs(own_par.children) do
         if c == self then
@@ -99,6 +106,8 @@ function Rosetree:swap(node)
     end
     node_par.children[ni] = self
     own_par.children[oi] = node
+    node.index = oi
+    self.index = ni
     node.parent = own_par
     self.parent = node_par
     node:refreshLabel()
@@ -136,15 +145,15 @@ function Rosetree:filter(p, once)
             end
         end
         --self:refreshLabel()
-        if #self.children > 1 then
-            return self
-        elseif #self.children == 0 then
+        if #self.children == 0 then
             self:destroy()
             return self.strong and self or nil
         elseif #self.children == 1 and not self.strong then
             self:destroy()
             self.children[1].parent = self.parent
-            return self.children[1]--self:pullupTip()
+            return self.children[1]
+        else
+            return self
         end
     else
         return self

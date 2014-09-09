@@ -325,13 +325,6 @@ function Guitree:add(child, ind)
 end
 
 --we have to always take on the old geometry
-function Guitree:pushdownTip()
-    local fact = self.data.geometry.fact
-    local new = self.super.pushdownTip(self, false, default_container())
-    new.data.geometry.fact = fact
-    return new
-end
-
 function Guitree:swap(node)
     local old_fact = self.data.geometry.fact
     self.super.swap(self, node)
