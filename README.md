@@ -80,9 +80,10 @@ TODO
 
 This project is incomplete, there are a couple (a lot of) things missing and just as many bugs
 
+* Best way to hide non selected tab?
 * Configurable tree creation, i.e. tile by default
-* Display selected containers with styling in tabboxes (not complete)
 * Allowing changing how nodes are labelled when using swap/focus
+* Add more using containers support
 * Add mouse scaling support
 * And more
 
@@ -90,5 +91,5 @@ Bugs
 ----
 
 * Properly clean up on layout switch
-* Couple bugs with client size minimums, figure out better system
+* Couple bugs with client size minimums, figure out better resizing rules
 * A couple display bugs after redrawing
