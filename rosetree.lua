@@ -37,13 +37,22 @@ function Rosetree:add(child, ind)
     if self.tip then
         self:destroy()
         self.tip = false
-        self.strong = false
-        local cont = self:newContainer()
+        local cont = self:newInner()
         self.children = {}
-        local oldData = self.data
+        local child = self:newTip(self.data)
         self.data = cont.data
-        local child = self:newTip(oldData)
         self:add(child)
+        --local cont = self:newInner()
+        --self.children = {}
+        --local oldData = self.data
+        --self.data = cont.data
+        --local child = self:newTip(oldData)
+        --self.parent.children[self.index] = cont
+        --cont.parent = self.parent
+        --cont.index = self.index
+        --cont:add(self)
+        --cont:add(child)
+        --return cont
     end
     --reassign parent
     child.parent = self
@@ -62,14 +71,22 @@ function Rosetree:add(child, ind)
     child.index = ind or #self.children
 end
 
-function Rosetree:detach(ind)
-    if not ind or self.tip then return end
-    for i=ind+1,#self.children do
-        self.children[i-1] = self.children[i]
-        self.children[i-1].index = i-1
+function Rosetree:detach(begin, ende)
+    if self.tip then return end
+    ende = ende or begin
+    local detached = {}
+    local range = (ende - begin)+1
+    for i=begin,ende do
+        table.insert(detached, self.children[i])
     end
-    self.children[#self.children] = nil
-    return self.children[ind]
+    for i=ende+1,#self.children do
+        self.children[i-range] = self.children[i]
+        self.children[i-range].index = i-range
+    end
+    for i=(#self.children-range+1),#self.children do
+        self.children[i] = nil
+    end
+    return (range == 1 and detached[1]) or detached
 end
 
 function Rosetree:swap(node)
@@ -136,7 +153,8 @@ function Rosetree:filter(p, once)
         for i, child in ipairs(self.children) do
             local res = child:filter(p, once)
             if not res then
-                table.remove(self.children, i)
+                self:detach(i)
+                --table.remove(self.children, i)
                 if once then
                     break
                 end

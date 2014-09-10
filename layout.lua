@@ -78,6 +78,7 @@ local function redraw(self, screen, geometry, hides)
                 end
             end
             geo.height = geo.height + tabbox_height
+            geo.y = geo.y - tabbox_height
         else
             --figure out if we're distributing over width or height            
             local dimension, invariant, offset
@@ -147,8 +148,8 @@ local function redraw(self, screen, geometry, hides)
                 end
             end
             geo[dimension] = used
-            self.data.geometry.last = geo
         end
+        self.data.geometry.last = geo
         return geo
     else
         local c = self.data.c
@@ -318,9 +319,6 @@ end
 --Function called when a client is unmanaged
 local function clean_tree(c)
     layout.arrange_lock = true
-    local function scale(node)
-        local fact = node.data.geometry.fact
-    end
     for i, _ in pairs(trees) do
         if trees[i] then
             trees[i].top:filterClientAttr("window", c.window, scale)

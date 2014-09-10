@@ -104,20 +104,27 @@ function Guitree:newContainer(strong)
     return self.super.newInner(self, default_container(), {}, strong or false)
 end
 
+Guitree.newInner = Guitree.newContainer
+
 function Guitree:destroy()
     if self.tip then
         for k, v in pairs(self.data.callbacks) do
             self.data.c:disconnect_signal(k, v)
         end
+        self.data.callbacks = {}
     else
         if self.data.tabbox then
             self.data.tabbox.destroy()
             self.data.tabbox = nil
         end
+        for _, c in ipairs(self.children) do
+            c:destroy()
+        end
     end
 end
 
 function Guitree:kill()
+    self:destroy()
     self:traverse(function(node)
         if node.tip then node.data.c:kill() end
     end)
@@ -228,7 +235,7 @@ end
 --and that the client is minimized before geo.min is set
 local function reset_last_focused(node)
     local i = 0
-    while not node.data.lastFocus.data.geometry.in_tree
+    while not node.data.lastFocus:inTree()
         and i ~= #node.children do
         i = i + 1
         node.data.lastFocus = node.children[i]
@@ -308,6 +315,14 @@ function Guitree:unfocus()
     if self.parent then self.parent:unfocus() end
 end
 
+function Guitree:urgent(val)
+    local curr = self
+    while curr do
+        curr.data.urgent = val
+        curr = curr.parent
+    end
+end
+
 
 --Insert and node manipulation
 function Guitree:add(child, ind)
@@ -376,10 +391,11 @@ local function tasklist_label(node, args)
     local max_h = (node.tip and node.data.c.maximized_horizontal)
     local max_v = (node.tip and node.data.c.maximized_vertical)
     local min = (node.tip and node.data.c.minimized)
-             or (not node.tip and node.data.geometry.minimized)
+             or node.data.geometry.minimized
     local focused = (node.tip and capi.client.focus == node.data.c)
-             or (not node.tip and node.data.focused)
+             or node.data.focused
     local urgent = (node.tip and node.data.c.urgent)
+             or node.data.urgent
 
     if not theme.tasklist_plain_task_name then
         if sticky then name = name .. sticky_c end
