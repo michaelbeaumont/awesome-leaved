@@ -28,6 +28,14 @@ end
 Rosetree.newTip = Rosetree.new
 Rosetree.newInner = Rosetree.new
 
+function Rosetree:overwrite(dest)
+    dest.data = self.data
+    dest.tip = self.tip
+    dest.strong = self.strong
+    dest.children = self.children
+end
+
+
 function Rosetree:destroy()
 end
 
@@ -167,12 +175,17 @@ function Rosetree:filter(p, once)
             self:destroy()
             return self.strong and self or nil
         elseif #self.children == 1 and not self.strong then
-            self:destroy()
-            self.children[1].parent = self.parent
-            return self.children[1]
-        else
-            return self
+            self.children[1]:overwrite(self)
+            --local last_child = self:detach(1)
+            --print("last child: " .. tostring(last_child))
+            --self.parent.children[self.index] = last_child
+            --last_child.parent = self.parent
+            --last_child.index = self.index
+            --self:destroy()
+            --self.children[1].parent = self.parent
+            --return self.children[1]
         end
+        return self
     else
         return self
     end

@@ -31,7 +31,7 @@ local function create_buttons(buttons, object)
 end
 
 local function label(data)
-    return data.label, data.bg, data.bg_image, data.icon
+    return data.label, data.bg, data.bg_image, data.use_icon
 end
 
 function tabbox:rename(container)
@@ -73,18 +73,25 @@ function tabbox:rename(container)
             }
         end
 
-        local text, bg, bg_image, icon = label(o.data)
+        local text, bg, bg_image, use_icon = label(o.data)
 
         --The text might be invalid, so use pcall
         if not pcall(tb.set_markup, tb, text) then
             tb:set_markup("<i>&lt;Invalid text&gt;</i>")
         end
+
         bgb:set_bg(bg)
         if type(bg_image) == "function" then
             bg_image = bg_image(tb,o,m,objects,i)
         end
         bgb:set_bgimage(bg_image)
-        ib:set_image(icon)
+
+        if o.tip and use_icon then
+            ib:set_image(o.data.c.icon)
+        else
+            --TODO ideas for how/if to iconify containers
+        end
+
         if not pcall(tb.set_markup, tb, text) then
             tb:set_markup("<i>&lt;Invalid text&gt;</i>")
         end

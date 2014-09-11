@@ -178,6 +178,7 @@ local function redraw(self, screen, geometry, hides)
             geometry = self.data.c:geometry(geometry)
 
             self.data.geometry.last = geometry
+            hides.space = geometry
             --use last used geometry for stashing hidden clients
 
             --add back borders for reporting used size
@@ -299,15 +300,13 @@ function layout.arrange(p)
         layout.forceNextOrient = nil
     end
 
-    hides = {space = {}}
-    hides.space.y = p.workarea.y+1
-    hides.space.x = p.workarea.x+1
+    hides = {space = p.workarea}
     if n >= 1 then
         redraw(top, p, area, hides)
     end
     for _, c in ipairs(hides) do
         c:geometry({width=1, height=1, x=hides.space.x, y = hides.space.y})
-        c:lower()
+        c.below = true
     end
 
     if logger.info then top:show() end

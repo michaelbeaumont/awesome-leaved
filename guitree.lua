@@ -1,5 +1,9 @@
 local capi = { screen = screen,
                client = client }
+local awful = {
+    layout = require "awful.layout",
+    --tag = require "awful.tag"
+}
 local util = require "awful.util"
 local beautiful = require "beautiful"
 local client = require "awful.client"
@@ -50,25 +54,24 @@ function Guitree:newTip(data)
     local newNode = self.super.newTip(self, data)
     local c = data.c
 
+    local callbacks = {node = newNode}
     local u = function ()
-        newNode:refreshLabel()
+        callbacks.node:refreshLabel()
     end
-    local callbacks = {}
-    callbacks['property::urgent']=u
+    callbacks['property::urgent']=function()
+        callbacks.node:urgent(newNode.data.c.urgent)  
+        u()
+    end
     callbacks['property::sticky']=u
     callbacks['property::ontop']=u
     callbacks['property::floating']=function()
-        newNode:float(client.floating.get(newNode.data.c))
+        callbacks.node:float(client.floating.get(newNode.data.c))
         u()
     end
-    callbacks['property::maximized_horizontal']=function()
-        u()
-    end
-    callbacks['property::maximized_vertical']=function()
-        u()
-    end
+    callbacks['property::maximized_horizontal']=u
+    callbacks['property::maximized_vertical']=u
     callbacks['property::minimized']=function()
-        newNode:minimize(newNode.data.c.minimized)
+        callbacks.node:minimize(newNode.data.c.minimized)
         u()
     end
     callbacks['property::name']=u
@@ -80,18 +83,25 @@ function Guitree:newTip(data)
     --TODO add arrange on size_hints changed
     callbacks['focus']=function() 
         local mind = newNode.data.c.minimized
-        if newNode.data.geometry.minimized == mind then
-            newNode:focus()
+        if callbacks.node.data.geometry.minimized == mind then
+            callbacks.node:focus()
         end
         u()
     end
     callbacks['unfocus']=function()
-        newNode:unfocus()
+        callbacks.node:unfocus()
         u()
     end
+    callbacks['tagged']=u
+    callbacks['untagged']=u
+    callbacks['list']=u
+    --awful.tag.attached_connect_signal(c.screen, "property::selected", u)
+    --awful.tag.attached_connect_signal(c.screen, "property::activated", u)
         
     for k, v in pairs(callbacks) do
-        c:connect_signal(k, v)
+        if k ~= "node" then
+            c:connect_signal(k, v)
+        end
     end
 
     newNode.data.lastFocus = newNode
@@ -106,10 +116,43 @@ end
 
 Guitree.newInner = Guitree.newContainer
 
+function Guitree:overwrite(dest)
+    self.super.overwrite(self, dest)
+    if self.tip then
+        dest.data.callbacks.node = dest
+    end
+end
+
+--handle breaking nodes in and out of the tree
+--all of these functions assume a consistent state of the tree
+--ie for all nodes if the client is minimized, also geo.min is set
+--and that the client is minimized before geo.min is set
+local function reset_last_focused(node)
+    local i = 0
+    while not node.data.lastFocus:inTree()
+        and i ~= #node.children do
+        i = i + 1
+        node.data.lastFocus = node.children[i]
+    end
+end
+
+local function change_visibles(node, num_changed)
+    local geo = node.data.geometry
+    geo.visibles = geo.visibles + num_changed
+    reset_last_focused(node)
+    if geo.visibles == 0 and num_changed < 0 then
+        if node.parent then change_visibles(node.parent, -1) end
+    elseif geo.visibles == 1 and num_changed > 0 then
+        if node.parent then change_visibles(node.parent, 1) end
+    end
+end
+
 function Guitree:destroy()
     if self.tip then
         for k, v in pairs(self.data.callbacks) do
-            self.data.c:disconnect_signal(k, v)
+            if k ~= 'node' then
+                self.data.c:disconnect_signal(k, v)
+            end
         end
         self.data.callbacks = {}
     else
@@ -229,29 +272,6 @@ function Guitree:scaleNode(pc, direction)
     end
 end
 
---handle breaking nodes in and out of the tree
---all of these functions assume a consistent state of the tree
---ie for all nodes if the client is minimized, also geo.min is set
---and that the client is minimized before geo.min is set
-local function reset_last_focused(node)
-    local i = 0
-    while not node.data.lastFocus:inTree()
-        and i ~= #node.children do
-        i = i + 1
-        node.data.lastFocus = node.children[i]
-    end
-end
-
-local function change_visibles(node, num_changed)
-    local geo = node.data.geometry
-    geo.visibles = geo.visibles + num_changed
-    reset_last_focused(node)
-    if geo.visibles == 0 and num_changed < 0 then
-        if node.parent then change_visibles(node.parent, -1) end
-    elseif geo.visibles == 1 and num_changed > 0 then
-        if node.parent then change_visibles(node.parent, 1) end
-    end
-end
 
 local function descendMinimize(urnode, min) --, real)
     urnode:traverse(function(node)
@@ -343,6 +363,13 @@ function Guitree:add(child, ind)
     if child:inTree() then
         self.data.geometry.visibles = self.data.geometry.visibles + 1
     end
+end
+
+function Guitree:detach(begin, ende)
+    ende = ende or begin
+    local num = begin - ende + 1    
+    self.data.geometry.visibles = self.data.geometry.visibles - num
+    self.super.detach(self, begin, ende)
 end
 
 --we have to always take on the old geometry
@@ -448,18 +475,15 @@ local function tasklist_label(node, args)
         bg_image = bg_image_normal
     end
     text = text .. "</span>"
-    return text, bg, bg_image, not tasklist_disable_icon
-                                and node.tip
-                                and node.data.c.icon
-                               or nil
+    return text, bg, bg_image, node.tip and not tasklist_disable_icon
 end
 
 function Guitree:refreshLabel()
-    local text, bg, bg_image, icon = tasklist_label(self)
+    local text, bg, bg_image, use_icon = tasklist_label(self)
     self.data.label = text
     self.data.bg = bg
     self.data.bg_image = bg_image
-    self.data.icon = icon
+    self.data.use_icon = use_icon
 
     if self.data.tabbox then
         self.data.tabbox:rename(self)
