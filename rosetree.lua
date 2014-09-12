@@ -43,6 +43,9 @@ end
 function Rosetree:add(child, ind)
     --convert to inner
     if self.tip then
+        if #self.parent.children == 1 then
+            return self.parent:add(child, ind)
+        end
         self:destroy()
         self.tip = false
         local cont = self:newInner()

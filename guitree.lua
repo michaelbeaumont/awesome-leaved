@@ -359,9 +359,11 @@ function Guitree:add(child, ind)
 
     child:refreshLabel()
 
-    self.data.lastFocus = child
-    if child:inTree() then
-        self.data.geometry.visibles = self.data.geometry.visibles + 1
+    if child.parent == self then
+        self.data.lastFocus = child
+        if child:inTree() then
+            self.data.geometry.visibles = self.data.geometry.visibles + 1
+        end
     end
 end
 
@@ -537,4 +539,5 @@ function Guitree:show(level)
     end
     self:traverse(window_shower, function() return true end, level)
 end
+
 return Guitree

@@ -276,7 +276,7 @@ function layout.arrange(p)
                     
                     if lastFocusOrientation ~= nextOrient then
                         lastFocusNode:add(newClient)
-                        lastFocusNode:setOrientation(nextOrient)
+                        newClient.parent:setOrientation(nextOrient)
                     else
                         lastFocusParent:add(newClient)
                     end
