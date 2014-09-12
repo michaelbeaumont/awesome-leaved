@@ -9,6 +9,7 @@ local table = table
 local math = math
 local awful = require "awful"
 local wibox = require "wibox"
+local naughty = require "naughty"
 
 local capi =
 {
@@ -23,7 +24,10 @@ local Guitree = require "awesome-leaved.guitree"
 local Tabbox = require "awesome-leaved.tabbox"
 local utils = require "awesome-leaved.utils"
 
-local layout = { name = 'leaved',
+
+local layout = { mt = {},
+                 name = 'leaved',
+                 styles = require "awesome-leaved.styles",
                  trees = {},
                  forceNextOrient = nil,
                  arrange_lock = false}
@@ -197,13 +201,6 @@ local function redraw(self, screen, geometry, hides)
     end
 end
 
-local function prefer_equal()
-       
-end
-
-local function prefer_equal_get_next_orient(current, forceNext)
-    
-end
 
 function layout.arrange(p)
     if layout.arrange_lock then
@@ -228,75 +225,25 @@ function layout.arrange(p)
 
     local old_num = trees[tag].total_num
     local changed = n - old_num
+    local initLayout
     if math.abs(changed) > 1 then
         initLayout = true
     end
     trees[tag].total_num = n
 
     if changed > 0 then
-        local lastFocusNode, lastFocusParent, lastFocusGeo
+        local lastFocusNode
         local lastFocus = awful.client.focus.history.get(1, 0)
         if lastFocus and not awful.client.floating.get(lastFocus) then
             lastFocusNode = top:findWith("window", lastFocus.window)
-            if lastFocusNode then
-                lastFocusParent = lastFocusNode.parent
-                lastFocusGeo = lastFocusNode.data.c:geometry()
-            end
         end
 
-        local initLayout = false
+        layout.style.manage(p,
+                            trees[tag],
+                            lastFocusNode,
+                            initLayout,
+                            layout.forceNextOrient)
 
-        local prevClient = nil
-        local splitHoriz = false
-        local nextOrient = layout.forceNextOrient
-
-        for i, c in ipairs(p.clients) do
-            --maybe unnecessarily slow? could maintain a list of tracked clients
-            local possibleChild = top:findWith("window", c.window)
-            if not possibleChild then
-                local newClient = Guitree:newClient(c)
-
-                if lastFocusNode then
-                    local lastFocusOrientation = lastFocusParent:getOrientation()
-                    if not nextOrient then
-                        if (lastFocusGeo.width <= lastFocusGeo.height) then
-                            nextOrient = Guitree.vert
-                        else
-                            nextOrient = Guitree.horiz
-                        end
-                    elseif nextOrient == Guitree.opp then
-                        if lastFocusOrientation == Guitree.horiz then
-                            nextOrient = Guitree.vert
-                        elseif lastFocusOrientation == Guitree.vert then
-                            nextOrient = Guitree.horiz
-                        else
-                            nextOrient = lastFocusOrientation
-                        end
-                    end
-                    
-                    if lastFocusOrientation ~= nextOrient then
-                        lastFocusNode:add(newClient)
-                        newClient.parent:setOrientation(nextOrient)
-                    else
-                        lastFocusParent:add(newClient)
-                    end
-                else
-                    top:add(newClient)
-                end
-                prevClient = newClient
-            else
-                prevClient = possibleChild
-            end
-            --ready for next iteration
-            lastFocusNode = prevClient
-            lastFocusParent = lastFocusNode.parent
-            lastFocusGeo = lastFocusNode.data.c:geometry()
-            if nextOrient == Guitree.horiz then
-                nextOrient = Guitree.vert
-            else
-                nextOrient = Guitree.horiz
-            end
-        end
         layout.forceNextOrient = nil
     end
 
@@ -336,6 +283,22 @@ local function handle_signals(t)
     end
 end
 
+function layout.init(choice)
+    if layout.styles[choice] then
+        layout.style = layout.styles[choice]
+    else
+        naughty.notify({ preset = naughty.config.presets.critical,
+                         title = "Initialization error (awesome-leaved)",
+                         text = "The selected style '" .. tostring(choice) ..
+                                "' was not found, using 'spiral'"})
+    end
+    return layout
+end
+
+function layout.mt:__call(...)
+    return layout.init(...)
+end
+
 awful.tag.attached_connect_signal(s, "property::layout", handle_signals)
 
-return layout
+return setmetatable(layout, layout.mt)
