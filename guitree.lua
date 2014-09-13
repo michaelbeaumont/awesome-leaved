@@ -528,12 +528,14 @@ end
 function Guitree:show(level)
     local function window_shower(node, level)
         local output, name
+        local index = ""
+        if node.parent then index = node.index end
         if node.tip then
-            name = "Client["
-            output = tostring(node.data.c.window .. "| #: " .. node.data.geometry.fact .. "|" .. tostring(node) .. "| IT: " .. tostring(node:inTree()))
+            name = "Client["..index.. " "
+            output = tostring(node.data.c.window .. "| Fct:" .. node.data.geometry.fact .. "|" .. tostring(node) .. "| IT: " .. tostring(node:inTree()))
         else
-            name = "Container["
-            output = tostring(tostring(node) .. ":" .. node.data.orientation .. ' ' .. #node.children .. "|" .. "Size: " .. node.data.geometry.fact .. "| LF: " .. tostring(node.data.lastFocus) .. "| Vis: " .. node.data.geometry.visibles .. "| IT: " .. tostring(node:inTree()))
+            name = "Container["..index.. " "
+            output = tostring(tostring(node) .. ":" .. node.data.orientation .. ' ' .. #node.children .. "|" .. "Fct: " .. node.data.geometry.fact .. "| LF: " .. tostring(node.data.lastFocus) .. "| Vis: " .. node.data.geometry.visibles .. "| IT: " .. tostring(node:inTree()))
         end
         print(string.rep(" ", level) .. name .. output .. "]")
     end

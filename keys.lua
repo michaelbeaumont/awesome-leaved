@@ -140,12 +140,17 @@ local function make_keygrabber(screen, cls_map, callback)
     local keys = {}
 
     local function hide_others(choice)
+        local possible = false
         for k, c in pairs(cls_map) do
-            if tonumber(k)
-                and not (tostring(k):find(choice) or choice:find(k)) then
-                c.label.visible = false
+            if tonumber(k) then
+                if tostring(k):find(choice) then
+                    possible = true
+                else--if not choice:find(k) then
+                    c.label.visible = false
+                end
             end
         end
+        return possible
     end
 
     local collect
@@ -159,8 +164,8 @@ local function make_keygrabber(screen, cls_map, callback)
             if #keys < digits then
                 logger.print("fine", "Waiting for more keys")
                 choice = table.concat(keys)
-                hide_others(choice)
-                return 
+                local possible = hide_others(choice)
+                if possible then return end
             end
         elseif key ~= "Return" and key ~= "KP_Enter" then
             keys = {}
@@ -211,8 +216,8 @@ local function select_node(callback, label_containers, only_containers)
         if not node.tip then
             label:set_align('left')
             label:set_valign('top')
-            wi = c_geo.width*0.9
-            he = c_geo.height*0.9
+            wi = c_geo.width
+            he = c_geo.height
             local text = wrap_text(name, 16)
             label:set_markup(text)
         else
@@ -239,6 +244,16 @@ local function select_node(callback, label_containers, only_containers)
         end
         geo.width = wi
         geo.height = he
+        --local offset = 0
+        --if node.index == 1 then
+            --local adjust = 20
+            --local par_name = tostring(math.floor(name/10))
+            --offset = cls_map[par_name].offset + 1
+            --geo.x = geo.x+adjust*offset
+            --geo.y = geo.y+adjust*offset
+            --geo.width = geo.width-adjust*2*offset
+            --geo.height = geo.height-adjust*2*offset
+        --end
         local box = wibox({screen = screen,
                            ontop=true,
                            visible=true})
@@ -255,7 +270,7 @@ local function select_node(callback, label_containers, only_containers)
         box:set_bg(color .. alpha)
 
 
-        cls_map[name] = {node=node, label=box}
+        cls_map[name] = {node=node, label=box, offset=offset}
         if node.data.c == lastFocus then
             cls_map.current = name
         end
@@ -335,7 +350,7 @@ function keys.select_use_container()
             y = c_geo.y
         }
         local box
-        if awesome.composite_manager_running then
+        if true then --awesome.composite_manager_running then
             geo.width = wi
             geo.height = he
             box = wibox({screen = screen,
@@ -365,18 +380,33 @@ function keys.select_use_container()
         callback=function(keys)
             local last = keys[#keys]
             local act_par = active.parent
-            if last == "Up" then
+            local rev = false
+            if act_par and active.parent:getOrientation() == Guitree.vert then
+                rev = true
+            end
+            if last == "Up" and not rev 
+                or last == "Left" and rev then
+                --up to the left
                 if active.parent.parent then
                     act_par:detach(active.index)
-                    act_par.parent:add(active)
+                    act_par.parent:add(active, active.index)
                 end
-            elseif last == "Down" then
+            elseif last == "Down" and not rev 
+                or last == "Right" and rev then
+                --go down to the right
+                if active.index < #act_par.children then
+                    act_par:detach(active.index)
+                    print(act_par.children[active.index])
+                    act_par.children[active.index]:add(active,1)
+                end
 
-            elseif last == "Left" then
+            elseif last == "Left" and not rev
+                or last == "Up" and rev then
                 if active.index > 1 then
                     active:swap(act_par.children[active.index-1])
                 end
-            elseif last == "Right" then
+            elseif last == "Right" and not rev
+                or last == "Down" and rev then
                 if active.index < #act_par.children then
                     active:swap(act_par.children[active.index+1])
                 end

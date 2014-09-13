@@ -70,11 +70,11 @@ function Rosetree:add(child, ind)
 
     --add child
     if ind and ind <= #self.children then
+        table.insert(self.children, ind, child)
         for i=ind,#self.children do
             self.children[i].index = i
         end
-        table.insert(self.children, ind, child)
-        child.index = ind
+        --child.index = ind
     else
         table.insert(self.children, child)
         child.index = #self.children
