@@ -48,32 +48,23 @@ end
 
 function keys.minContainer()
     change_focused(function(node) 
-        layout.arrange_lock = true
         node.parent:minimize(true)
-        layout.arrange_lock = false
     end)
 end
 
-local function reorient(orientation) change_focused(
+local function reorder(order) change_focused(
     function(node)
-         node.parent:setOrientation(orientation)
+         node.parent:setOrder(order)
      end)
 end
 
-function keys.horizontalize() reorient(Guitree.horiz) end
-function keys.verticalize() reorient(Guitree.vert) end
+function keys.horizontalize() reorder(Guitree.horiz) end
+function keys.verticalize() reorder(Guitree.vert) end
 
-function keys.reorder() 
+function keys.changeStyle()
     change_focused(
         function(node)
-            local parent = node.parent
-            if parent:isTabbed() then
-                parent:setStacked()
-            elseif parent:isStacked() then
-                parent:unOrder()
-            else
-                parent:setTabbed()
-            end
+            node.parent:shiftStyle()
         end)
 end
 
@@ -286,7 +277,7 @@ local function select_node(callback, label_containers, only_containers)
                 and label_containers) then
 
             cls_map.digits = math.max(cls_map.digits, level+1)
-            if node:isOrdered() then
+            if node:isStyled() then
                 --handle ordered containers
                 make_box(node.data.geometry.last, node, tostring(name))
             else
@@ -381,7 +372,7 @@ function keys.select_use_container()
             local last = keys[#keys]
             local act_par = active.parent
             local rev = false
-            if act_par and active.parent:getOrientation() == Guitree.vert then
+            if act_par and active.parent:getOrder() == Guitree.vert then
                 rev = true
             end
             if last == "Up" and not rev 
@@ -424,12 +415,26 @@ function keys.select_use_container()
                                     active:swap(choice)
                          end)
                         end},
-                 c = {}, --change orientation
+                 t = {callback=function()
+                         active:shiftStyle()
+                         awful.layout.arrange(screen_index)
+                     end,
+                     wait=true},
+                 c = {callback=function()
+                         active:shiftOrientation()
+                         awful.layout.arrange(screen_index)
+                         print(active.data.orientation)
+                     end,
+                     wait=true},
+                 n = {callback=function()
+                         active:minimize(true)
+                     end},
                  Up = direction,
                  Down = direction,
                  Left = direction,
                  Right = direction,
                 }
+    map.x = map.d
     local function c(current, choice)
         layout.active_container = choice 
         active = choice

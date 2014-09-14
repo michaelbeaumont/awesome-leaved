@@ -105,21 +105,21 @@ function tabbox:resize(p, geometry, node)
         self.container.visible = false
         return
     end
-    local order = node:getOrder()
-    if order ~= self.order then
-        if order == Guitree.stack then
+    local style = node:getStyle()
+    if style ~= self.style then
+        if style == Guitree.stack then
             self.layout = wibox.layout.flex.vertical()
         else
             self.layout = wibox.layout.flex.horizontal()
         end
         self.container:set_widget(self.layout)
-        self.order = order
+        self.style = style
         self:rename(node)
     end
     local new_geo = { width = geometry.width,
                       x = geometry.x,
                       y = geometry.y }
-    if self.order == Guitree.stack then
+    if self.style == Guitree.stack then
         new_geo.height = tabbox.box_height*(#node.children)
     else
         new_geo.height = self.box_height

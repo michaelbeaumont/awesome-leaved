@@ -27,9 +27,9 @@ local utils = require "awesome-leaved.utils"
 
 local layout = { mt = {},
                  name = 'leaved',
-                 styles = require "awesome-leaved.styles",
+                 builders = require "awesome-leaved.builders",
                  trees = {},
-                 forceNextOrient = nil,
+                 forceNextOrder = nil,
                  arrange_lock = false}
 
 -- Globals
@@ -51,7 +51,7 @@ local function redraw(self, screen, geometry, hides)
 
         --Handle the tabbox
         local tabbox_height = 0
-        if self:isOrdered() then
+        if self:isStyled() then
             if not self.data.tabbox then
                 self.data.tabbox = Tabbox:new(screen.index)
             end
@@ -63,7 +63,7 @@ local function redraw(self, screen, geometry, hides)
 
 
         --if we are tabbed or stacked then render only the focused node
-        if self:isOrdered() then
+        if self:isStyled() then
             for _, s in ipairs(self.children) do
                 if s:inTree() then
                     local sub_geo = { x=geometry.x, y=geometry.y }
@@ -238,13 +238,13 @@ function layout.arrange(p)
             lastFocusNode = top:findWith("window", lastFocus.window)
         end
 
-        layout.style.manage(p,
+        layout.builder.manage(p,
                             trees[tag],
                             lastFocusNode,
                             initLayout,
-                            layout.forceNextOrient)
+                            layout.forceNextOrder)
 
-        layout.forceNextOrient = nil
+        layout.forceNextOrder = nil
     end
 
     hides = {space = p.workarea}
@@ -267,7 +267,7 @@ local function clean_tree(c)
     layout.arrange_lock = true
     for i, _ in pairs(trees) do
         if trees[i] then
-            trees[i].top:filterClientAttr("window", c.window, scale)
+            trees[i].top:filterClientAttr("window", c.window)
         end
     end
     layout.arrange_lock = false
@@ -284,13 +284,14 @@ local function handle_signals(t)
 end
 
 function layout.init(choice)
-    if layout.styles[choice] then
-        layout.style = layout.styles[choice]
+    if layout.builders[choice] then
+        layout.builder = layout.builders[choice]
     else
         naughty.notify({ preset = naughty.config.presets.critical,
                          title = "Initialization error (awesome-leaved)",
-                         text = "The selected style '" .. tostring(choice) ..
-                                "' was not found, using 'spiral'"})
+                         text = "The selected tree builder '"
+                                .. tostring(choice)
+                                .. "' was not found, using 'spiral'"})
     end
     return layout
 end

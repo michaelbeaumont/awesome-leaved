@@ -13,16 +13,19 @@ local Rosetree = require "awesome-leaved.rosetree"
 local Guitree = Rosetree:new()
 Guitree.super = Rosetree
 
-Guitree.vert = 'V'
-Guitree.horiz = 'H'
+Guitree.vert = 1
+Guitree.horiz = 2
+Guitree.orders = {[1]='v',[2]='h'}
 Guitree.opp = 'opp'
-Guitree.stack = 'stack'
-Guitree.tabs = 'tabs'
+Guitree.no_style = 1
+Guitree.stack = 2
+Guitree.tabs = 3
+Guitree.styles = {[1]='none',[2]='stacked',[3]='tabbed'}
 
 local function default_container()
     return {
-        order=nil,
-        orientation=Guitree.horiz,
+        style=Guitree.no_style,
+        order=Guitree.horiz,
         lastFocus=nil,
         tabbox=nil,
         label="",
@@ -31,7 +34,7 @@ local function default_container()
                      floating = false,
                      minimized = false,
                      max = {h = false, v = false},
-                     visibles = 0 },
+                     invisibles = 0 },
         callbacks={}
     }
 end
@@ -136,14 +139,14 @@ local function reset_last_focused(node)
     end
 end
 
-local function change_visibles(node, num_changed)
+local function change_invisibles(node, num_changed)
     local geo = node.data.geometry
-    geo.visibles = geo.visibles + num_changed
+    geo.invisibles = geo.invisibles + num_changed
     reset_last_focused(node)
-    if geo.visibles == 0 and num_changed < 0 then
-        if node.parent then change_visibles(node.parent, -1) end
-    elseif geo.visibles == 1 and num_changed > 0 then
-        if node.parent then change_visibles(node.parent, 1) end
+    if geo.invisibles == #node.children and num_changed > 0 then
+        if node.parent then change_invisibles(node.parent, 1) end
+    elseif geo.invisibles == #node.children-1 and num_changed < 0 then
+        if node.parent then change_invisibles(node.parent, -1) end
     end
 end
 
@@ -168,55 +171,65 @@ end
 
 function Guitree:kill()
     self:destroy()
+    local kills = {}
     self:traverse(function(node)
-        if node.tip then node.data.c:kill() end
+        if node.tip then table.insert(kills, node.data.c) end
     end)
+    for _, c in ipairs(kills) do
+        c:kill()
+    end
 end
 
 --Getters and setters
-function Guitree:setOrder(order)
-    self.data.order = order
+function Guitree:setStyle(style)
+    self.data.style = style
 end
-function Guitree:unOrder()
-    self.data.order = nil
+function Guitree:shiftStyle()
+    self.data.style = (self.data.style % #Guitree.styles) + 1
+end
+function Guitree:unStyle()
+    self.data.style = Guitree.no_style
     self.data.tabbox.destroy()
     self.data.tabbox = nil
 end
 function Guitree:setStacked()
-    self.data.order = Guitree.stack
+    self.data.style = Guitree.stack
 end
 function Guitree:setTabbed()
-    self.data.order = Guitree.tabs
+    self.data.style = Guitree.tabs
+end
+function Guitree:getStyle()
+    return self.data.style
+end
+function Guitree:isStacked()
+    return self.data.style == Guitree.stack
+end
+function Guitree:isTabbed()
+    return self.data.style == Guitree.tabs
+end
+function Guitree:isStyled()
+    return self.data.style ~= Guitree.no_style
+end
+function Guitree:setOrder(order)
+    self.data.order = order
+end
+function Guitree:shiftOrder()
+    self.data.order = (self.data.order % #Guitree.orders) + 1
 end
 function Guitree:getOrder()
     return self.data.order
 end
-function Guitree:isStacked()
-    return self.data.order == Guitree.stack
-end
-function Guitree:isTabbed()
-    return self.data.order == Guitree.tabs
-end
-function Guitree:isOrdered()
-    return self.data.order ~= nil
-end
-function Guitree:setOrientation(orient)
-    self.data.orientation = orient
-end
-function Guitree:getOrientation()
-    return self.data.orientation
-end
 function Guitree:isHorizontal()
-    return self.data.orientation == Guitree.horiz 
+    return self.data.order == Guitree.horiz
 end
 function Guitree:isVertical()
-    return self.data.orientation == Guitree.vert
+    return self.data.order == Guitree.vert
 end
 function Guitree:inTree()
     return not self.data.geometry.minimized
         and not self.data.geometry.floating
-        and self.data.geometry.visibles ~= 0
-end
+        and (self.tip or self.data.geometry.invisibles < #self.children)
+    end
 
 function Guitree:getLastFocusedClient()
     local node = self.data.lastFocus
@@ -255,7 +268,7 @@ end
 function Guitree:scaleNode(pc, direction)
     if not self.parent then
         return
-    elseif not direction or self.parent.data.orientation == direction then
+    elseif not direction or self.parent.data.order == direction then
         local old_fact = self.data.geometry.fact
         local total_fact = 0
         for _, c in ipairs(self.parent.children) do
@@ -291,7 +304,7 @@ function Guitree:float(val)
     local changed = geo.floating ~= val
     geo.floating = val
     if self.parent and changed then
-        change_visibles(self.parent, geo.floating and 1 or -1)
+        change_invisibles(self.parent, geo.floating and -1 or 1)
     end
 end
 
@@ -303,7 +316,7 @@ function Guitree:minimize(val)
             if self.parent.data.geometry.minimized and not val then
                 self.parent:minimize(val)
             else
-                change_visibles(self.parent, geo.minimized and 1 or -1)
+                change_invisibles(self.parent, geo.minimized and -1 or 1)
             end
         end
         descendMinimize(self, val)
@@ -362,16 +375,9 @@ function Guitree:add(child, ind)
     if child.parent == self then
         self.data.lastFocus = child
         if child:inTree() then
-            self.data.geometry.visibles = self.data.geometry.visibles + 1
+            --self.data.geometry.invisibles = self.data.geometry.invisibles + 1
         end
     end
-end
-
-function Guitree:detach(begin, ende)
-    ende = ende or begin
-    local num = begin - ende + 1    
-    self.data.geometry.visibles = self.data.geometry.visibles - num
-    self.super.detach(self, begin, ende)
 end
 
 --we have to always take on the old geometry
@@ -438,7 +444,7 @@ local function tasklist_label(node, args)
     if not node.tip then
         local labels = {}
 
-        labels[1] = node:getOrientation() .. " ["
+        labels[1] = Guitree.orders[node:getOrder()] .. " ["
         
         for i, c in ipairs(node.children) do
             labels[i+1] = c.data.label
@@ -532,10 +538,19 @@ function Guitree:show(level)
         if node.parent then index = node.index end
         if node.tip then
             name = "Client["..index.. " "
-            output = tostring(node.data.c.window .. "| Fct:" .. node.data.geometry.fact .. "|" .. tostring(node) .. "| IT: " .. tostring(node:inTree()))
+            output = tostring(node.data.c.window
+            .. "| Fct:" .. node.data.geometry.fact .. "|"
+            .. tostring(node)
+            .. "| IT: " .. tostring(node:inTree()))
         else
             name = "Container["..index.. " "
-            output = tostring(tostring(node) .. ":" .. node.data.orientation .. ' ' .. #node.children .. "|" .. "Fct: " .. node.data.geometry.fact .. "| LF: " .. tostring(node.data.lastFocus) .. "| Vis: " .. node.data.geometry.visibles .. "| IT: " .. tostring(node:inTree()))
+            output = tostring(tostring(node) .. ":"
+                .. node.data.order .. ' '
+                .. #node.children .. "|"
+                .. "Fct: " .. node.data.geometry.fact
+                .. "| LF: " .. tostring(node.data.lastFocus)
+                .. "| Invis: " .. node.data.geometry.invisibles
+                .. "| IT: " .. tostring(node:inTree()))
         end
         print(string.rep(" ", level) .. name .. output .. "]")
     end
