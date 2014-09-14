@@ -74,7 +74,6 @@ function Rosetree:add(child, ind)
         for i=ind,#self.children do
             self.children[i].index = i
         end
-        --child.index = ind
     else
         table.insert(self.children, child)
         child.index = #self.children
@@ -84,18 +83,24 @@ end
 
 function Rosetree:detach(begin, ende)
     if self.tip then return end
-    ende = ende or begin
+    ende = ande and math.min(ende, #self.children) or begin
     local detached = {}
     local range = (ende - begin)+1
     for i=begin,ende do
-        table.insert(detached, self.children[i])
+        table.insert(detached, table.remove(self.children, begin))
     end
-    for i=ende+1,#self.children do
-        self.children[i-range] = self.children[i]
-        self.children[i-range].index = i-range
+    for i=begin,#self.children do
+        self.children[i].index = i 
     end
-    for i=(#self.children-range+1),#self.children do
-        self.children[i] = nil
+    if not self.strong then
+        if #self.children == 0 then
+            self:destroy() 
+            if self.parent then
+                self.parent:detach(self.index)
+            end
+        elseif #self.children == 1 then
+            self.children[1]:overwrite(self)
+        end
     end
     return (range == 1 and detached[1]) or detached
 end
@@ -121,17 +126,8 @@ function Rosetree:swap(node)
         end
         if caught then return end
     end
-    local ni, oi
-    for i, c in ipairs(own_par.children) do
-        if c == self then
-            oi = i
-        end
-    end
-    for i, c in ipairs(node_par.children) do
-        if c == node then
-            ni = i
-        end
-    end
+    local ni = node.index
+    local oi = self.index
     node_par.children[ni] = self
     own_par.children[oi] = node
     node.index = oi
@@ -161,32 +157,25 @@ function Rosetree:filter(p, once)
         self:destroy()
         return nil
     elseif not self.tip then
-        for i, child in ipairs(self.children) do
+        local i = 1
+        while i <= #self.children do
+            local child = self.children[i]
             local res = child:filter(p, once)
             if not res then
-                self:detach(i)
-                --table.remove(self.children, i)
+                table.remove(self.children, i)
                 if once then
                     break
                 end
             else
                 self.children[i] = res
+                i=i+1
             end
         end
-        --self:refreshLabel()
         if #self.children == 0 then
             self:destroy()
             return self.strong and self or nil
         elseif #self.children == 1 and not self.strong then
             self.children[1]:overwrite(self)
-            --local last_child = self:detach(1)
-            --print("last child: " .. tostring(last_child))
-            --self.parent.children[self.index] = last_child
-            --last_child.parent = self.parent
-            --last_child.index = self.index
-            --self:destroy()
-            --self.children[1].parent = self.parent
-            --return self.children[1]
         end
         return self
     else
@@ -195,6 +184,7 @@ function Rosetree:filter(p, once)
 end
 
 
+--must not be used for destructive updates
 function Rosetree:traverse(f, p, level)
     if level == nil then
         level = 0
