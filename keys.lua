@@ -5,6 +5,7 @@ local table = table
 local math = math
 local awesome = awesome
 local awful = require "awful"
+awful.tag = require "awful.tag"
 local wibox = require "wibox"
 local keygrabber = require("awful.keygrabber")
 local capi =
@@ -26,10 +27,25 @@ local logger = utils.logger('off')
 
 local keys = { }
 
+function keys.wrap(mod, _key, normal_press, leaved_press)
+    local function wrapped(...)
+        normal_press = normal_press or function() end
+        local screen_index = capi.mouse.screen
+        local tag = awful.tag.selected(screen_index)
+        if awful.tag.getproperty(tag, "layout").name == "leaved" then
+            leaved_press(...)
+        else
+            normal_press(...)
+        end
+
+    end
+    return awful.key(mod, _key, wrapped)
+end
+
 --Additional functions for keybindings
-function keys.splitH() layout.forceNextOrient = Guitree.horiz end
-function keys.splitV() layout.forceNextOrient = Guitree.vert end
-function keys.splitOpp() layout.forceNextOrient = Guitree.opp end
+function keys.splitH() layout.forceNextOrder = Guitree.horiz end
+function keys.splitV() layout.forceNextOrder = Guitree.vert end
+function keys.splitOpp() layout.forceNextOrder = Guitree.opp end
 
 local function change_focused(changer)
     --get all the boring local variables
@@ -421,7 +437,7 @@ function keys.select_use_container()
                      end,
                      wait=true},
                  c = {callback=function()
-                         active:shiftOrientation()
+                         active:shiftOrder()
                          awful.layout.arrange(screen_index)
                          print(active.data.orientation)
                      end,
