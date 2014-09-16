@@ -53,17 +53,6 @@ function Rosetree:add(child, ind)
         local child = self:newTip(self.data)
         self.data = cont.data
         self:add(child)
-        --local cont = self:newInner()
-        --self.children = {}
-        --local oldData = self.data
-        --self.data = cont.data
-        --local child = self:newTip(oldData)
-        --self.parent.children[self.index] = cont
-        --cont.parent = self.parent
-        --cont.index = self.index
-        --cont:add(self)
-        --cont:add(child)
-        --return cont
     end
     --reassign parent
     child.parent = self
@@ -83,7 +72,7 @@ end
 
 function Rosetree:detach(begin, ende)
     if self.tip then return end
-    ende = ande and math.min(ende, #self.children) or begin
+    ende = ende and math.min(ende, #self.children) or begin
     local detached = {}
     local range = (ende - begin)+1
     for i=begin,ende do
@@ -124,7 +113,6 @@ function Rosetree:swap(node)
             test = node
             testee = self
         end
-        if caught then return end
     end
     local ni = node.index
     local oi = self.index
@@ -162,7 +150,11 @@ function Rosetree:filter(p, once)
             local child = self.children[i]
             local res = child:filter(p, once)
             if not res then
-                table.remove(self.children, i)
+                for j=i+1,#self.children do
+                    self.children[j].index = j-1
+                    self.children[j-1] = self.children[j]
+                end
+                self.children[#self.children] = nil
                 if once then
                     break
                 end

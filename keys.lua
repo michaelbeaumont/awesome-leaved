@@ -52,7 +52,8 @@ local function change_focused(changer)
     local lastFocus = awful.client.focus.history.get(1, 0)
     local screen_index = capi.mouse.screen
     local tag = awful.tag.selected(screen_index)
-    local top = layout.trees[tag].top
+    local b = awful.tag.getproperty(tag, "layout").b
+    local top = layout.trees[tag][b].top
     --find the focused client
     local node = top:findWith('window', lastFocus.window)
 
@@ -77,7 +78,14 @@ end
 function keys.horizontalize() reorder(Guitree.horiz) end
 function keys.verticalize() reorder(Guitree.vert) end
 
-function keys.changeStyle()
+function keys.shiftOrder()
+    change_focused(
+        function(node)
+            node.parent:shiftOrder()
+        end)
+end
+
+function keys.shiftStyle()
     change_focused(
         function(node)
             node.parent:shiftStyle()
@@ -301,8 +309,9 @@ local function select_node(callback, label_containers, only_containers)
             end
         end
     end
-    if layout.trees[tag] then
-        layout.trees[tag].top:traverse(f)
+    local b = awful.tag.getproperty(tag, "layout").b
+    if layout.trees[tag][b] then
+        layout.trees[tag][b].top:traverse(f)
     end
 
     make_keygrabber(screen, cls_map, callback)
@@ -403,7 +412,6 @@ function keys.select_use_container()
                 --go down to the right
                 if active.index < #act_par.children then
                     act_par:detach(active.index)
-                    print(act_par.children[active.index])
                     act_par.children[active.index]:add(active,1)
                 end
 
@@ -439,7 +447,6 @@ function keys.select_use_container()
                  c = {callback=function()
                          active:shiftOrder()
                          awful.layout.arrange(screen_index)
-                         print(active.data.orientation)
                      end,
                      wait=true},
                  n = {callback=function()

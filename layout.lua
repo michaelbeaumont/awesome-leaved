@@ -168,17 +168,6 @@ local function redraw(self, screen, geometry, hides)
             geometry.width = geometry.width - border
             geometry.height = geometry.height - border
 
-            --take size hints into account
-            --if self.parent:isHorizontal() then
-            --    dimension = "width"
-            --else
-            --    dimension = "height"
-            --end
-            --local size_hints = c.size_hints
-            --local size_hint = size_hints["min_"..dimension] or size_hints["base_"..dimension] or 0
-            --geometry[dimension] = math.max(size_hint, geometry[dimension])
-
-            --apply geometry
             geometry = self.data.c:geometry(geometry)
 
             self.data.geometry.last = geometry
@@ -190,9 +179,6 @@ local function redraw(self, screen, geometry, hides)
             geometry.height = geometry.height + border
 
         elseif self:inTree() then
-            --self.data.geometry.minimized = true
-            --c.minimized = true
-            --self.data.geometry.minimized = false
             --horrible hack due to wiboxes otherwise being under all windows
             table.insert(hides, c)
         end
@@ -202,7 +188,7 @@ local function redraw(self, screen, geometry, hides)
 end
 
 
-function layout.arrange(p)
+function layout.arrange(builder, p)
     if layout.arrange_lock then
         logger.print('fine', "Encountered arrange lock")
         return
@@ -213,23 +199,29 @@ function layout.arrange(p)
     local n = #p.clients
 
     local tag = awful.tag.selected(capi.mouse.screen)
-    if not trees[tag] then
-        trees[tag] = {
+    if not trees[tag] then trees[tag] = {} end
+    if not trees[tag][builder] then
+        trees[tag][builder] = {
             clients = nil,
             total_num = 0,
             top = Guitree:newContainer(true)
         }
+        --one call to builder.init per tree
+        builder:init(p, trees[tag][builder])
     end
+    local our_tree = trees[tag][builder]
 
-    local top = trees[tag].top
+    local top = our_tree.top
+    --always call to builder.manage
+    builder:manage(p, our_tree)
 
-    local old_num = trees[tag].total_num
+    local old_num = our_tree.total_num
     local changed = n - old_num
     local initLayout
     if math.abs(changed) > 1 then
         initLayout = true
     end
-    trees[tag].total_num = n
+    our_tree.total_num = n
 
     if changed > 0 then
         local lastFocusNode
@@ -238,11 +230,12 @@ function layout.arrange(p)
             lastFocusNode = top:findWith("window", lastFocus.window)
         end
 
-        layout.builder.manage(p,
-                            trees[tag],
-                            lastFocusNode,
-                            initLayout,
-                            layout.forceNextOrder)
+        --we have new clients
+        builder:handleNew(p,
+                       our_tree,
+                       lastFocusNode,
+                       initLayout,
+                       layout.forceNextOrder)
 
         layout.forceNextOrder = nil
     end
@@ -265,9 +258,11 @@ end
 --Function called when a client is unmanaged
 local function clean_tree(c)
     layout.arrange_lock = true
-    for i, _ in pairs(trees) do
-        if trees[i] then
-            trees[i].top:filterClientAttr("window", c.window)
+    for _, tag in pairs(trees) do
+        for _, tree in pairs(tag) do
+            if tree then
+                tree.top:filterClientAttr("window", c.window)
+            end
         end
     end
     layout.arrange_lock = false
@@ -283,21 +278,29 @@ local function handle_signals(t)
     end
 end
 
-function layout.init(choice)
-    if layout.builders[choice] then
-        layout.builder = layout.builders[choice]
-    else
-        naughty.notify({ preset = naughty.config.presets.critical,
-                         title = "Initialization error (awesome-leaved)",
-                         text = "The selected tree builder '"
-                                .. tostring(choice)
-                                .. "' was not found, using 'spiral'"})
-    end
-    return layout
+
+--import all builders as separate layouts into suit
+layout.suit = {}
+
+local function make_layout(b)
+    local ret = {
+        b = b,
+        arrange = utils.partial(layout.arrange, b)
+    }
+    return setmetatable(ret, {__index=layout})
 end
 
-function layout.mt:__call(...)
-    return layout.init(...)
+for b_name, b in pairs(layout.builders) do
+    if #b.versions == 1 then
+        layout.suit[b_name] = make_layout(b.versions[1])
+    else
+        layout.suit[b_name] = {}
+        local bs = layout.suit[b_name] 
+        for sub_b_name, sub_b in pairs(b.versions) do
+            bs[sub_b_name] = make_layout(sub_b)
+        end
+    end
+
 end
 
 awful.tag.attached_connect_signal(s, "property::layout", handle_signals)

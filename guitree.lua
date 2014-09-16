@@ -16,6 +16,9 @@ Guitree.super = Rosetree
 Guitree.vert = 1
 Guitree.horiz = 2
 Guitree.orders = {[1]='v',[2]='h'}
+function Guitree.flip_order(order)
+    return (order % #Guitree.orders) + 1
+end
 Guitree.opp = 'opp'
 Guitree.no_style = 1
 Guitree.stack = 2
@@ -169,17 +172,6 @@ function Guitree:destroy()
     end
 end
 
-function Guitree:kill()
-    self:destroy()
-    local kills = {}
-    self:traverse(function(node)
-        if node.tip then table.insert(kills, node.data.c) end
-    end)
-    for _, c in ipairs(kills) do
-        c:kill()
-    end
-end
-
 --Getters and setters
 function Guitree:setStyle(style)
     self.data.style = style
@@ -286,10 +278,9 @@ function Guitree:scaleNode(pc, direction)
 end
 
 
-local function descendMinimize(urnode, min) --, real)
+local function descendMinimize(urnode, min)
     urnode:traverse(function(node)
         node.data.geometry.minimized = min
-        --node.data.geometry.in_tree = min
     end)
     urnode:traverse(function(node)
         if node.tip then 
@@ -355,6 +346,18 @@ function Guitree:urgent(val)
         curr = curr.parent
     end
 end
+
+function Guitree:kill()
+    self:destroy()
+    local kills = {}
+    self:traverse(function(node)
+        if node.tip then table.insert(kills, node.data.c) end
+    end)
+    for _, c in ipairs(kills) do
+        c:kill()
+    end
+end
+
 
 
 --Insert and node manipulation
@@ -539,15 +542,15 @@ function Guitree:show(level)
         if node.tip then
             name = "Client["..index.. " "
             output = tostring(node.data.c.window
-            .. "| Fct:" .. node.data.geometry.fact .. "|"
-            .. tostring(node)
+            .. "| Fct:" .. node.data.geometry.fact
+            .. "|" .. tostring(node)
             .. "| IT: " .. tostring(node:inTree()))
         else
             name = "Container["..index.. " "
-            output = tostring(tostring(node) .. ":"
-                .. node.data.order .. ' '
-                .. #node.children .. "|"
-                .. "Fct: " .. node.data.geometry.fact
+            output = tostring(tostring(node)
+                .. ":" .. node.data.order
+                .. ' ' .. #node.children
+                .. "| Fct: " .. node.data.geometry.fact
                 .. "| LF: " .. tostring(node.data.lastFocus)
                 .. "| Invis: " .. node.data.geometry.invisibles
                 .. "| IT: " .. tostring(node:inTree()))
