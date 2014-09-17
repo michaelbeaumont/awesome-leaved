@@ -33,14 +33,14 @@ local layout = { mt = {},
                  arrange_lock = false}
 
 -- Globals
-local logger = utils.logger('info')
+local logger = utils.logger('off')
 -- alias layout.trees
 local trees = layout.trees
 
 
 --draw and arrange functions
 local function redraw(self, screen, geometry, hides)
-    if not self.tip then
+    if not self.tip and #self.children > 0 then
         local maximized = self.data.geometry.max.h and self.data.geometry.max.v
         local geo = maximized and screen.workarea or geometry
 
@@ -155,7 +155,7 @@ local function redraw(self, screen, geometry, hides)
         end
         self.data.geometry.last = geo
         return geo
-    else
+    elseif self.tip then
         local c = self.data.c
         if awful.client.floating.get(c) then
             geometry.width = 0

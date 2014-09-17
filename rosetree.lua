@@ -29,6 +29,7 @@ Rosetree.newTip = Rosetree.new
 Rosetree.newInner = Rosetree.new
 
 function Rosetree:overwrite(dest)
+    dest:destroy()
     dest.data = self.data
     dest.tip = self.tip
     dest.strong = self.strong
@@ -81,15 +82,15 @@ function Rosetree:detach(begin, ende)
     for i=begin,#self.children do
         self.children[i].index = i 
     end
-    if not self.strong then
-        if #self.children == 0 then
-            self:destroy() 
-            if self.parent then
-                self.parent:detach(self.index)
-            end
-        elseif #self.children == 1 then
-            self.children[1]:overwrite(self)
+    if #self.children == 0 then
+        self:destroy() 
+        if self.parent and not self.strong then
+            self.parent:detach(self.index)
         end
+    elseif #self.children == 1 and not self.strong then
+        local child = self.children[1]
+        self.children[1] = nil
+        child:overwrite(self)
     end
     return (range == 1 and detached[1]) or detached
 end
@@ -113,6 +114,8 @@ function Rosetree:swap(node)
             test = node
             testee = self
         end
+        if caught then return end
+        --TODO make the top one without the bottom one a child of the bottom
     end
     local ni = node.index
     local oi = self.index
@@ -167,7 +170,9 @@ function Rosetree:filter(p, once)
             self:destroy()
             return self.strong and self or nil
         elseif #self.children == 1 and not self.strong then
-            self.children[1]:overwrite(self)
+            local child = self.children[1]
+            self.children[1] = nil
+            child:overwrite(self)
         end
         return self
     else

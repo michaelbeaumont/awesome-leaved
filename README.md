@@ -35,45 +35,45 @@ There are a few important keybindings for leaved.
 
 To switch the orientation of the current container use `shiftOrder`:
 
-    awful.key({ modkey }, "s", leaved.shiftOrder),
+    awful.key({ modkey }, "s", leaved.keys.shiftOrder),
 
 To force the current container to split in a certain direction, bind any or all of the following functions:
 
-    awful.key({ modkey, "Shift" }, "h", leaved.splitH), --split next horizontal
-    awful.key({ modkey, "Shift" }, "v", leaved.splitV), --split next vertical
-    awful.key({ modkey, "Shift" }, "o", leaved.splitOpp), --split in opposing direction
+    awful.key({ modkey, "Shift" }, "h", leaved.keys.splitH), --split next horizontal
+    awful.key({ modkey, "Shift" }, "v", leaved.keys.splitV), --split next vertical
+    awful.key({ modkey, "Shift" }, "o", leaved.keys.splitOpp), --split in opposing direction
 
 To switch between no tabs, tabs and stack use `shiftStyle`:
 
-    awful.key({ modkey, "Shift" }, "t", leaved.shiftStyle),
+    awful.key({ modkey, "Shift" }, "t", leaved.keys.shiftStyle),
 
 To scale windows there are two options, use vertical and horizontal scaling and include the percentage points to scale as an argument:
 
-    awful.key({ modkey, "Shift" }, "]", leaved.scaleV(-5)),
-    awful.key({ modkey, "Shift" }, "[", leaved.scaleV(5)),
-    awful.key({ modkey }, "]", leaved.scaleH(-5)),
-    awful.key({ modkey }, "[", leaved.scaleH(5))
+    awful.key({ modkey, "Shift" }, "]", leaved.keys.scaleV(-5)),
+    awful.key({ modkey, "Shift" }, "[", leaved.keys.scaleV(5)),
+    awful.key({ modkey }, "]", leaved.keys.scaleH(-5)),
+    awful.key({ modkey }, "[", leaved.keys.scaleH(5))
 
 Or scale based on the focused client and its opposite direction:
 
-    awful.key({ modkey, "Shift" }, "]", leaved.scaleOpposite(-5)),
-    awful.key({ modkey, "Shift" }, "[", leaved.scaleOpposite(5)),
-    awful.key({ modkey }, "]", leaved.scaleFocused(-5)),
-    awful.key({ modkey }, "[", leaved.scaleFocused(5))
+    awful.key({ modkey, "Shift" }, "]", leaved.keys.scaleOpposite(-5)),
+    awful.key({ modkey, "Shift" }, "[", leaved.keys.scaleOpposite(5)),
+    awful.key({ modkey }, "]", leaved.keys.scaleFocused(-5)),
+    awful.key({ modkey }, "[", leaved.keys.scaleFocused(5))
 
 `focusedScale` will always make the current client bigger or smaller in its container and `oppositeScale` will always scale in the opposing direction.
 
 To swap two clients in the tree, use `swap`:
 
-    awful.key({ modkey }, "'", leaved.swap)
+    awful.key({ modkey }, "'", leaved.keys.swap)
 
 To select a client with the keyboard, use `focus`:
 
-    awful.key({ modkey }, ";", leaved.focus)
+    awful.key({ modkey }, ";", leaved.keys.focus)
 
 or (to allow focusing containers as well)
 
-    awful.key({ modkey }, ";", leaved.focus(true))
+    awful.key({ modkey }, ";", leaved.keys.focus(true))
 
 To minimize the container of the current client, use `minContainer`:
 
