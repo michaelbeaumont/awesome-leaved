@@ -209,11 +209,9 @@ function layout.arrange(builder, p)
         --one call to builder.init per tree
         builder:init(p, trees[tag][builder])
     end
-    local our_tree = trees[tag][builder]
 
+    local our_tree = trees[tag][builder]
     local top = our_tree.top
-    --always call to builder.manage
-    builder:manage(p, our_tree)
 
     local old_num = our_tree.total_num
     local changed = n - old_num
@@ -239,6 +237,8 @@ function layout.arrange(builder, p)
 
         layout.forceNextOrder = nil
     end
+
+    builder:cleanup(p, our_tree)
 
     hides = {space = p.workarea}
     if n >= 1 then

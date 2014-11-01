@@ -3,7 +3,7 @@ local Guitree = require "awesome-leaved.guitree"
 local spiral = {}
 
 function spiral:init() end
-function spiral:manage() end
+function spiral:cleanup() end
 
 function spiral.nextOrder(initLayout, lastFocusNode, requestedOrder)
     local ret
@@ -52,13 +52,12 @@ function spiral:handleNew(p, tree, lastFocusNode, initLayout, requestedOrder)
 
                 local nextOrder = spiral.nextOrder(initLayout, lastFocusNode, requestedOrder)
 
-                if lastFocusOrder~= nextOrder then
+                if lastFocusOrder ~= nextOrder then
                     lastFocusNode:add(newTip)
                     newTip.parent:setOrder(nextOrder)
                 else
                     lastFocusParent:add(newTip)
                 end
-
             else
                 top:add(newTip)
             end
