@@ -3,4 +3,6 @@
 ---------------------------------------------------
 
 return { layout = require "awesome-leaved.layout",
-    keys = require "awesome-leaved.keys" }
+         keys = require "awesome-leaved.keys",
+         mouse = require "awesome-leaved.mouse",
+         utils = require "awesome-leaved.utils" }

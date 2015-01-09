@@ -5,7 +5,6 @@ local table = table
 local math = math
 local awesome = awesome
 local awful = require "awful"
-awful.tag = require "awful.tag"
 local wibox = require "wibox"
 local keygrabber = require("awful.keygrabber")
 local capi =
@@ -21,7 +20,6 @@ local Guitree = require "awesome-leaved.guitree"
 local Tabbox = require "awesome-leaved.tabbox"
 local layout = require "awesome-leaved.layout"
 local utils = require "awesome-leaved.utils"
-local partial = utils.partial
 
 local logger = utils.logger('off')
 
@@ -32,7 +30,7 @@ function keys.wrap(mod, _key, normal_press, leaved_press)
         normal_press = normal_press or function() end
         local screen_index = capi.mouse.screen
         local tag = awful.tag.selected(screen_index)
-        if awful.tag.getproperty(tag, "layout").name == "leaved" then
+        if layout.is_active() then
             leaved_press(...)
         else
             normal_press(...)
@@ -105,7 +103,7 @@ function keys.scale(pc, orientation)
             node:scaleNode(pc, orientation)
         end
     end
-    return partial(change_focused, f)
+    return utils.partial(change_focused, f)
 end
 
 function keys.scaleFocused(pc)
@@ -214,7 +212,7 @@ local function wrap_text(text, size, color, font)
     return wrapped
 end
 
-local function select_node(callback, label_containers, only_containers)
+local function select_node(callback, label_containers, label_only_containers)
     local cls_map = {curr={}, digits=0}
     cls_map.curr[0] = 0
     local screen = capi.mouse.screen
@@ -296,7 +294,7 @@ local function select_node(callback, label_containers, only_containers)
         local name = cls_map.curr[level] or cls_map.curr[level-1]*10
         name = name+1
         cls_map.curr[level] = name
-        if (node.tip and not only_containers)
+        if (node.tip and not label_only_containers)
             or (not node.tip 
                 and label_containers) then
 
@@ -340,6 +338,8 @@ function keys.focus(all)
         return utils.partial(select_client, c)
     end
 end
+
+keys.focus_container = function() keys.focus(true) end
 
 function keys.select_use_container()
     --select container
@@ -469,4 +469,5 @@ function keys.select_use_container()
     --select a container and start vim mode
     select_container(c)
 end
+
 return keys

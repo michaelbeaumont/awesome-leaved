@@ -26,7 +26,7 @@ Additionally, add the following to your beautiful theme:
 
     theme.layout_leaved = "~/.config/awesome/awesome-leaved/leaved.png"
 
-using the correct path to the image file.
+using the correct path to the image file in this repository.
 
 Keybindings
 -----------
@@ -35,7 +35,7 @@ There are a few important keybindings for leaved.
 
 To switch the orientation of the current container use `shiftOrder`:
 
-    awful.key({ modkey }, "s", leaved.keys.shiftOrder),
+    awful.key({ modkey }, "o", leaved.keys.shiftOrder),
 
 To force the current container to split in a certain direction, bind any or all of the following functions:
 
@@ -73,11 +73,22 @@ To select a client with the keyboard, use `focus`:
 
 or (to allow focusing containers as well)
 
-    awful.key({ modkey }, ";", leaved.keys.focus(true))
+    awful.key({ modkey }, ";", leaved.keys.focus_container)
 
 To minimize the container of the current client, use `minContainer`:
 
     awful.key({ modkey, "Shift" }, "n", leaved.keys.minContainer)
+
+
+Mouse actions
+-------------
+
+Unfortunately different functions are needed at the moment to support shifting clients around while using a leaved layout.
+
+Change the following under `clientbuttons` or however you set mouse button bindings for clients:
+
+    --awful.button({ modkey }, 1, awful.mouse.client.move),
+    awful.button({ modkey }, 1, leaved.mouse.move),
 
 TODO
 ----
@@ -88,6 +99,7 @@ This project is incomplete, there are a couple (a lot of) things missing and jus
 * Allowing changing how nodes are labelled when using swap/focus
 * Add more using containers support
 * Add mouse scaling support
+* Add replacing node with new window
 * And more
 
 Bugs

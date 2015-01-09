@@ -1,3 +1,5 @@
+local awful = require "awful"
+local capi = { mouse = mouse }
 local utils = {}
 
 function utils.logger(level)
@@ -26,4 +28,14 @@ function utils.partial(f, ...)
     end
 end
 
+function utils.guard(f, g)
+    return function(...)
+        local tag = awful.tag.selected(capi.mouse.screen)
+        if require "awesome-leaved.layout".is_active() then
+            f(unpack({...}))
+        else
+            g(unpack({...}))
+        end
+    end
+end
 return utils

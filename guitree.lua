@@ -103,6 +103,7 @@ function Guitree:newTip(data)
     callbacks['list']=u
     --awful.tag.attached_connect_signal(c.screen, "property::selected", u)
     --awful.tag.attached_connect_signal(c.screen, "property::activated", u)
+    --TODO: Add tags added removed hook, to hide in that tree
         
     for k, v in pairs(callbacks) do
         if k ~= "node" then

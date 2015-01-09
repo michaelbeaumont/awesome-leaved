@@ -26,6 +26,7 @@ local utils = require "awesome-leaved.utils"
 
 
 local layout = { mt = {},
+                 class = 'leaved',
                  name = 'leaved',
                  builders = require "awesome-leaved.builders",
                  trees = {},
@@ -187,7 +188,6 @@ local function redraw(self, screen, geometry, hides)
     end
 end
 
-
 function layout.arrange(builder, p)
     if layout.arrange_lock then
         logger.print('fine', "Encountered arrange lock")
@@ -199,18 +199,19 @@ function layout.arrange(builder, p)
     local n = #p.clients
 
     local tag = awful.tag.selected(capi.mouse.screen)
+    local layout_name = awful.tag.getproperty(tag, "layout").name
     if not trees[tag] then trees[tag] = {} end
-    if not trees[tag][builder] then
-        trees[tag][builder] = {
+    if not trees[tag][layout_name] then
+        trees[tag][layout_name] = {
             clients = nil,
             total_num = 0,
             top = Guitree:newContainer(true)
         }
         --one call to builder.init per tree
-        builder:init(p, trees[tag][builder])
+        builder:init(p, trees[tag][layout_name])
     end
 
-    local our_tree = trees[tag][builder]
+    local our_tree = trees[tag][layout_name]
     local top = our_tree.top
 
     local old_num = our_tree.total_num
@@ -254,6 +255,18 @@ function layout.arrange(builder, p)
     layout.arrange_lock = false
 end
 
+function layout.is_active()
+    local screen_index = capi.mouse.screen
+    local tag = awful.tag.selected(screen_index)
+    return awful.tag.getproperty(tag, "layout").name == "leaved"
+end
+
+function layout.node_from_client(c)
+    local tag = awful.tag.selected(capi.mouse.screen)
+    local layout_name = awful.tag.getproperty(tag, "layout").name
+    local our_tree = layout.trees[tag][layout_name]
+    return our_tree.top:findWith("window", c.window)
+end
 
 --Function called when a client is unmanaged
 local function clean_tree(c)
@@ -270,11 +283,11 @@ end
 
 --Initialize the layout
 local function handle_signals(t)
-    if awful.tag.getproperty(t, "layout").name == "leaved" then
+    if awful.tag.getproperty(t, "layout").class == "leaved" then
         capi.client.connect_signal("unmanage", clean_tree)
     elseif trees[t] then
         capi.client.disconnect_signal("unmanage", clean_tree)
-        trees[t] = nil
+        --trees[t] = nil
     end
 end
 
@@ -285,6 +298,7 @@ layout.suit = {}
 local function make_layout(b)
     local ret = {
         b = b,
+        --name = b.name,
         arrange = utils.partial(layout.arrange, b)
     }
     return setmetatable(ret, {__index=layout})
