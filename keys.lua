@@ -50,15 +50,16 @@ local function change_focused(changer)
     local lastFocus = awful.client.focus.history.get(1, 0)
     local screen_index = capi.mouse.screen
     local tag = awful.tag.selected(screen_index)
-    local b = awful.tag.getproperty(tag, "layout").b
-    local top = layout.trees[tag][b].top
-    --find the focused client
-    local node = top:findWith('window', lastFocus.window)
+    local tree = layout.get_active_tree()
+    if tree then
+        --find the focused client
+        local node = tree.top:findWith('window', lastFocus.window)
 
-    --apply function
-    changer(node)
-    --force rearrange
-    awful.layout.arrange(screen_index)
+        --apply function
+        changer(node)
+        --force rearrange
+        awful.layout.arrange(screen_index)
+    end
 end
 
 function keys.minContainer()
@@ -307,9 +308,9 @@ local function select_node(callback, label_containers, label_only_containers)
             end
         end
     end
-    local b = awful.tag.getproperty(tag, "layout").b
-    if layout.trees[tag][b] then
-        layout.trees[tag][b].top:traverse(f)
+    local tree = layout.get_active_tree()
+    if tree then
+        tree.top:traverse(f)
     end
 
     make_keygrabber(screen, cls_map, callback)

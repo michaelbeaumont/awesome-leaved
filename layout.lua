@@ -261,6 +261,13 @@ function layout.is_active()
     return awful.tag.getproperty(tag, "layout").name == "leaved"
 end
 
+function layout.get_active_tree()
+    local screen = capi.mouse.screen
+    local tag = awful.tag.selected(screen)
+    local name = awful.tag.getproperty(tag, "layout").name
+    return layout.trees[tag] and layout.trees[tag][name]
+end
+
 function layout.node_from_client(c)
     local tag = awful.tag.selected(capi.mouse.screen)
     local layout_name = awful.tag.getproperty(tag, "layout").name
