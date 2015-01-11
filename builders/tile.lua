@@ -2,6 +2,8 @@ local awful = {
     tag = require "awful.tag"
 }
 local Guitree = require "awesome-leaved.guitree"
+local utils = require "awesome-leaved.utils"
+local logger = utils.logger('off')
 
 local tile = {
 }
@@ -17,7 +19,7 @@ end
 
 local function flatten_treetop(top, flip)
     local queue = {}
-    local colstart = not flip and 1 or #top.children
+    local colstart = flip and #top.children or 1
     local colend = flip and 1 or #top.children
     local direction = flip and -1 or 1
     for _, m in ipairs(top.children[colstart].children) do
@@ -84,15 +86,25 @@ function tile:reorder(p, tree)
     for _, s in ipairs(new_slaves) do
         top:add(s, new_slave_index)
     end
-    top:add(new_master, new_front)
+    new_master:setOrder(self.order)
+    top:add(new_master, not self.flip and 1 or nil)
 end
 
 function tile:refactor(tree, mwfact)
     --calculate fact for the master container with mwfact
     local real_ncol = #tree.top.children-1
     if real_ncol > 0 then
-        local imaster, _, _ = self:get_range(tree)
-        tree.top.children[imaster].data.geometry.fact = mwfact*real_ncol/(1-mwfact)
+        local master_index = self.flip and #tree.top.children or 1
+        local colstart = flip and #tree.top.children-1 or 2
+        local colend = flip and 1 or #tree.top.children
+        local direction = flip and -1 or 1
+        local visible_cols = 0
+        for i=colstart,colend,direction do
+            if tree.top.children[i]:inTree() then
+                visible_cols = visible_cols+1
+            end
+        end
+        tree.top.children[master_index].data.geometry.fact = mwfact*visible_cols/(1-mwfact)
     end
 end
 

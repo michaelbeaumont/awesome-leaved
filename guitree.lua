@@ -368,6 +368,8 @@ function Guitree:add(child, ind)
         fact = self.data.geometry.fact
     end
 
+    local first_child = #self.children == 0
+
     self.super.add(self, child, ind)
 
     if fact then
@@ -378,8 +380,12 @@ function Guitree:add(child, ind)
 
     if child.parent == self then
         self.data.lastFocus = child
-        if child:inTree() then
-            --self.data.geometry.invisibles = self.data.geometry.invisibles + 1
+        if not child:inTree() then
+            change_invisibles(self,1)
+        elseif first_child then
+            --stupid hack
+            self.data.geometry.invisibles = 1
+            change_invisibles(self,-1)
         end
     end
 end
