@@ -40,7 +40,7 @@ local trees = layout.trees
 
 
 --draw and arrange functions
-local function redraw(self, screen, geometry, hides)
+function layout.draw_tree(self, screen, geometry, hides)
     if not self.tip and #self.children > 0 then
         local maximized = self.data.geometry.max.h and self.data.geometry.max.v
         local geo = maximized and screen.workarea or geometry
@@ -71,11 +71,11 @@ local function redraw(self, screen, geometry, hides)
                     if self.data.lastFocus ~= s then
                         sub_geo.width = 0
                         sub_geo.height = 0
-                        redraw(s, screen, sub_geo, hides)
+                        layout.draw_tree(s, screen, sub_geo, hides)
                     else
                         sub_geo.width = geo.width
                         sub_geo.height = geo.height
-                        local real_geo = redraw(s, screen, sub_geo, hides)
+                        local real_geo = layout.draw_tree(s, screen, sub_geo, hides)
                         geo.height = real_geo.height
                         geo.width = real_geo.width
                     end
@@ -142,14 +142,14 @@ local function redraw(self, screen, geometry, hides)
                     sub_geo[offset] = current_offset
                     sub_geo[dimension] = math.floor(sub_fact/remaining_fact*unused)
 
-                    local real_geo = redraw(s, screen, sub_geo, hides)
+                    local real_geo = layout.draw_tree(s, screen, sub_geo, hides)
 
                     used = used + real_geo[dimension]
                     current_offset = current_offset + real_geo[dimension]
                     unused = unused - real_geo[dimension]
                     remaining_fact = remaining_fact - sub_fact
                 else
-                    redraw(s, screen, sub_geo, hides)
+                    layout.draw_tree(s, screen, sub_geo, hides)
                 end
             end
             geo[dimension] = used
@@ -188,6 +188,8 @@ local function redraw(self, screen, geometry, hides)
     end
 end
 
+layout.redraw = layout.draw_tree
+
 function layout.arrange(builder, p)
     if layout.arrange_lock then
         logger.print('fine', "Encountered arrange lock")
@@ -207,8 +209,6 @@ function layout.arrange(builder, p)
             total_num = 0,
             top = Guitree:newContainer(true)
         }
-        --one call to builder.init per tree
-        builder:init(p, trees[tag][layout_name])
     end
 
     local our_tree = trees[tag][layout_name]
@@ -239,11 +239,9 @@ function layout.arrange(builder, p)
         layout.forceNextOrder = nil
     end
 
-    builder:cleanup(p, our_tree)
-
     hides = {space = p.workarea}
     if n >= 1 then
-        redraw(top, p, area, hides)
+        builder:redraw(top, p, area, hides)
     end
     for _, c in ipairs(hides) do
         c:geometry({width=1, height=1, x=hides.space.x, y = hides.space.y})
@@ -312,6 +310,8 @@ local function make_layout(b)
 end
 
 for b_name, b in pairs(layout.builders) do
+    --stupid quick hack
+    b.draw_tree = layout.draw_tree
     if #b.versions == 1 then
         layout.suit[b_name] = make_layout(b.versions[1])
     else

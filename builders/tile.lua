@@ -5,120 +5,178 @@ local Guitree = require "awesome-leaved.guitree"
 local utils = require "awesome-leaved.utils"
 local logger = utils.logger('off')
 
-local tile = {
-}
+local tile = {}
 
-function tile:init(p, tree)
-    local top_order = Guitree.flip_order(self.order)
-
-    --add master container
-    tree.top:setOrder(top_order)
-    tree.top:add(Guitree:newContainer(true))
-    tree.top.children[1]:setOrder(self.order)
-end
-
-local function flatten_treetop(top, flip)
-    local queue = {}
-    local colstart = flip and #top.children or 1
-    local colend = flip and 1 or #top.children
-    local direction = flip and -1 or 1
-    for _, m in ipairs(top.children[colstart].children) do
-        table.insert(queue, m)
-    end
-    if #top.children < 2 then return queue end
-
-    colstart = colstart+direction
-    local row = 1
-    --return queue
-    while row do
-        for i=colstart,colend,direction do
-            local column = top.children[i]
-            local nex = column.children[row]
-            if nex then
-                table.insert(queue, nex)
-            else
-                return queue
-            end
-        end
-        row = row+1
-    end
-end
-
-function tile:reorder(p, tree)
-    local t = awful.tag.selected(p.screen)
+--special draw functions
+function tile:redraw(node, screen, geometry, hides)
+    --organize containers
     local nmaster = awful.tag.getnmaster(t)
-    local ncol = awful.tag.getncol(t)
-
-    local queue = flatten_treetop(tree.top, self.flip)
-    local top = tree.top
-
-    tree.top:detach(1,#tree.top.children)
-
-    local new_slave_index = self.flip and 1 or nil
-
-    local new_master = Guitree:newContainer(true)
-
-    for i=1,nmaster do
-        local nex = table.remove(queue, 1)
-        if nex then
-            new_master:add(nex)
+    local masters = {fact=1}
+    local index = 1
+    while #masters < nmaster and index <= #node.children do
+        if node.children[index]:inTree() then
+            table.insert(masters, node.children[index])
+        else
+            --TODO: Change in other parts, important for min'd containers
+            local sub_geo = { width=0, height=0, x=0, y=0 }
+            tile.draw_tree(node.children[index], screen, sub_geo, hides)
         end
+        index = index + 1
+    end
+    local queue = {}
+    while index <= #node.children do
+        if node.children[index]:inTree() then
+            table.insert(queue, node.children[index])
+        end
+        index = index + 1
     end
 
-    local max_per_slave = math.ceil(#queue / ncol)
-    local new_slaves = {}
+    --sort columns
+    local ncol = awful.tag.getncol(t)
+    local max_per_col = math.ceil(#queue/ncol)
+    local col_num = 1
+    local cols = #queue > 0 and {{fact = 1}} or {}
+    local remaining_fact = 1
 
-    for j=1,max_per_slave do
-        for i=1,ncol do
-            local nex = table.remove(queue, 1)
-            if nex then
-                if not new_slaves[i] then
-                    new_slaves[i] = Guitree:newContainer(true)
-                    new_slaves[i]:setOrder(self.order)
-                end
-                new_slaves[i]:add(nex) 
-            else
-                break
+    for i, s in ipairs(queue) do
+        if s:inTree() then
+            table.insert(cols[col_num], s)
+        else
+            --draw_tree with 0 geo
+        end
+        if #cols[col_num] == max_per_col then
+            col_num = self.flip and (col_num) or col_num + 1
+            if i < #queue then
+                remaining_fact = remaining_fact+1
+                table.insert(cols,
+                             self.flip and 1 or #cols+1,
+                             {fact = 1})
             end
         end
     end
 
-    for _, s in ipairs(new_slaves) do
-        top:add(s, new_slave_index)
+    if #cols > 0 and #masters > 0 then
+        local mwmultip = awful.tag.getmwfact(t)
+        masters.fact = mwmultip*remaining_fact/(1-mwmultip)
+        remaining_fact = remaining_fact + masters.fact
     end
-    new_master:setOrder(self.order)
-    top:add(new_master, not self.flip and 1 or nil)
+
+    --start drawing
+    local dimension, invariant, offset
+    if node.data.order == Guitree.horiz then
+        dimension = "width"
+        invariant = "y"
+        offset = "x"
+    else
+        dimension = "height"
+        invariant = "x"
+        offset = "y"
+    end
+    local geo = screen.workarea
+    local used = 0
+    local unused = geo[dimension]
+    local current_offset = geo[offset]
+
+    --add masters
+    if #masters > 0 then
+        table.insert(cols, self.flip and #cols+1 or 1, masters)
+    end
+
+    --draw columns
+    for _, col in ipairs(cols) do
+        local sub_geo = { width=geo.width, height=geo.height,
+                          x=geo.x, y=geo.y }
+        sub_geo[invariant] = geo[invariant]
+        sub_geo[offset] = current_offset
+
+        sub_geo[dimension] = math.floor(col.fact/remaining_fact*unused)
+
+        local real_geo = tile.draw_column(node.data.order, screen, sub_geo, {}, col)
+        used = used + real_geo[dimension]
+        current_offset = current_offset + real_geo[dimension]
+        unused = unused - real_geo[dimension]
+        remaining_fact = remaining_fact - col.fact
+    end
 end
 
-function tile:refactor(tree, mwfact)
-    --calculate fact for the master container with mwfact
-    local real_ncol = #tree.top.children-1
-    if real_ncol > 0 then
-        local master_index = self.flip and #tree.top.children or 1
-        local colstart = flip and #tree.top.children-1 or 2
-        local colend = flip and 1 or #tree.top.children
-        local direction = flip and -1 or 1
-        local visible_cols = 0
-        for i=colstart,colend,direction do
-            if tree.top.children[i]:inTree() then
-                visible_cols = visible_cols+1
-            end
-        end
-        tree.top.children[master_index].data.geometry.fact = mwfact*visible_cols/(1-mwfact)
+function tile.draw_column(order, screen, geometry, hides, rows)
+    --figure out if we're distributing over width or height
+    local dimension, invariant, offset
+    if order == Guitree.vert then
+        dimension = "width"
+        invariant = "y"
+        offset = "x"
+    else
+        dimension = "height"
+        invariant = "x"
+        offset = "y"
     end
+
+
+    --new vars
+    local geo = geometry
+    local current_offset = geo[offset]
+
+    local used = 0
+    local unused = geo[dimension]
+    local remaining_fact = 0
+
+    --figure out how many windows will be rendered
+    for _, s in ipairs(rows) do
+        remaining_fact = remaining_fact +
+            (s:inTree() and s.data.geometry.fact or 0)
+    end
+    --read just according to the minimum size hints
+    for _, s in ipairs(rows) do
+        --retrieve size hints
+        local sh = s.data.geometry.hints or s:getSizeHints()
+        if logger.fine then
+            print("Size hints: w: " .. sh.width .. " h: " .. sh.height)
+        end
+        s.data.geometry.hints = nil
+
+        --calculate possible readjustment
+        --calculate new_f:
+        --new_f / ((rest_f - curr_f) + new_f) = hint / total
+        local rest_fact = remaining_fact - s.data.geometry.fact
+        local pc = sh[dimension] / geo[dimension]
+        local pot_fact = pc*rest_fact/(1-pc)
+        if pot_fact > s.data.geometry.fact then
+            remaining_fact = remaining_fact
+                - s.data.geometry.fact
+                + pot_fact
+            s.data.geometry.fact = pot_fact
+        end
+    end
+    --traverse the subtree and render child nodes
+    for _, s in ipairs(rows) do
+        local sub_geo = { width=geo.width, height=geo.height,
+                          x=geo.x, y=geo.y }
+        if s:inTree() then
+            local sub_fact = s.data.geometry.fact
+            sub_geo[invariant] = geo[invariant]
+            sub_geo[offset] = current_offset
+            sub_geo[dimension] = math.floor(sub_fact/remaining_fact*unused)
+
+            local real_geo = tile.draw_tree(s, screen, sub_geo, hides)
+
+            used = used + real_geo[dimension]
+            current_offset = current_offset + real_geo[dimension]
+            unused = unused - real_geo[dimension]
+            remaining_fact = remaining_fact - sub_fact
+        else
+            tile.draw_tree(s, screen, sub_geo, hides)
+        end
+    end
+    geo[dimension] = used
+    return geo
 end
 
 function tile:handleNew(p, tree, lastFocusNode, initLayout, requestedOrder)
-    self.handled_new = true
     local top = tree.top
     local t = awful.tag.selected(p.screen)
 
     local cls = p.clients
-    local maxnmaster = awful.tag.getnmaster(t)
-    local nmaster = math.min(maxnmaster, #cls)
-    local mwfact = awful.tag.getmwfact(t)
-    local ncol = awful.tag.getncol(t)
-    local master_i, _, _ = self:get_range(tree)
 
     for i, c in ipairs(p.clients) do
         --maybe unnecessarily slow? could maintain a list of tracked clients
@@ -126,67 +184,23 @@ function tile:handleNew(p, tree, lastFocusNode, initLayout, requestedOrder)
         if not possibleChild then
             local newTip = Guitree:newClient(c)
 
-            if requestedOrder == Guitree.opp then
-                local parentOrder = lastFocusNode.parent:getOrder()
-                lastFocusNode:add(newTip)
-            elseif #tree.top.children[master_i].children < maxnmaster then
-                tree.top.children[master_i]:add(newTip)
+            if lastFocusNode then
+                local lastFocusParent = lastFocusNode.parent
+                local lastFocusOrder= lastFocusParent:getOrder()
+
+                if requestedOrder and lastFocusOrder ~= requestedOrder then
+                    lastFocusNode:add(newTip)
+                    newTip.parent:setOrder(requestedOrder)
+                else
+                    lastFocusParent:add(newTip)
+                end
             else
-                local strt, endd, inc = self:get_range(tree)
-                local cntr = strt+inc
-                local first_slave = self.flip and #tree.top.children-1 or 2
-
-                while cntr >= #tree.top.children-(ncol) and cntr <= ncol+1 do
-                    if not tree.top.children[cntr] then
-                        cntr = self:new_slave_index(tree)
-                        tree.top:add(Guitree:newContainer(true), cntr)
-                        tree.top.children[cntr]:setOrder(self.order)
-                        first_slave = self.flip and #tree.top.children-1 or 2
-                        break
-                    elseif #tree.top.children[cntr].children
-                            < #tree.top.children[first_slave].children then
-                        break
-                    end
-                    cntr=cntr+inc
-                end
-                if not (cntr >= 1 and cntr <= ncol+1) then
-                    cntr = first_slave
-                end
-                tree.top.children[cntr]:add(newTip)
+                top:add(newTip)
             end
+            lastFocusNode = newTip
+        else
+            lastFocusNode = possibleChild
         end
-    end
-    self:refactor(tree, mwfact)
-end
-
-function tile:cleanup(p, tree)
-    local ncol = awful.tag.getncol(t)
-    local col_diff = #tree.top.children-1 - ncol
-    local nmaster = awful.tag.getnmaster(t)
-    local master_index = self.flip and #tree.top.children or 1
-    local mast_diff = #tree.top.children[master_index].children - nmaster
-    if (col_diff ~= 0 or mast_diff ~= 0) and not self.handled_new then
-        self:reorder(p, tree)
-    end
-    self.handled_new = false
-    local mwfact = awful.tag.getmwfact(t)
-    self:refactor(tree, mwfact)
-end
-
-function tile:new_slave_index(tree)
-    if self.flip then
-        return 1
-    else
-        return #tree.top.children+1
-    end
-end
-
-function tile:get_range(tree)
-    --return (start, end, inc)
-    if self.flip then
-        return #tree.top.children, 1, -1
-    else
-        return 1, #tree.top.children, 1
     end
 end
 

@@ -2,9 +2,6 @@ local Guitree = require "awesome-leaved.guitree"
 
 local spiral = {}
 
-function spiral:init() end
-function spiral:cleanup() end
-
 function spiral.nextOrder(initLayout, lastFocusNode, requestedOrder)
     local ret
     if initLayout then

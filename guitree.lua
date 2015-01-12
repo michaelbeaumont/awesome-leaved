@@ -368,7 +368,7 @@ function Guitree:add(child, ind)
         fact = self.data.geometry.fact
     end
 
-    local first_child = #self.children == 0
+    local first_child = not self.tip and #self.children == 0
 
     self.super.add(self, child, ind)
 
