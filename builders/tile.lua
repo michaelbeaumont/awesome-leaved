@@ -184,16 +184,12 @@ function tile:handleNew(p, tree, lastFocusNode, initLayout, requestedOrder)
         if not possibleChild then
             local newTip = Guitree:newClient(c)
 
-            if lastFocusNode then
+            if lastFocusNode and requestedOrder then
                 local lastFocusParent = lastFocusNode.parent
                 local lastFocusOrder= lastFocusParent:getOrder()
 
-                if requestedOrder and lastFocusOrder ~= requestedOrder then
-                    lastFocusNode:add(newTip)
-                    newTip.parent:setOrder(requestedOrder)
-                else
-                    lastFocusParent:add(newTip)
-                end
+                lastFocusNode:add(newTip)
+                newTip.parent:setOrder(requestedOrder)
             else
                 top:add(newTip)
             end

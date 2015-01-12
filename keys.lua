@@ -62,7 +62,7 @@ local function change_focused(changer)
     end
 end
 
-function keys.minContainer()
+function keys.min_container()
     change_focused(function(node) 
         node.parent:minimize(true)
     end)
@@ -169,37 +169,44 @@ local function make_keygrabber(screen, cls_map, callback)
 
     local collect
     collect = keygrabber.run(function(mod, key, event)
-        if event == "release" then return end
+            if event == "release"
+                or key:find('Shift')
+                or key:find('Control')
+                or key:find('Alt')
+                or key:find('Super')
+            then
+                return
+            end
 
-        logger.print("fine", "Got key: " .. key)
-        local choice
-        if tonumber(key) then
-            table.insert(keys, tonumber(key)) 
-            if #keys < digits then
-                logger.print("fine", "Waiting for more keys")
-                choice = table.concat(keys)
-                local possible = hide_others(choice)
-                if possible then return end
+            logger.print("fine", "Got key: " .. key)
+            local choice
+            if tonumber(key) then
+                table.insert(keys, tonumber(key)) 
+                if #keys < digits then
+                    logger.print("fine", "Waiting for more keys")
+                    choice = table.concat(keys)
+                    local possible = hide_others(choice)
+                    if possible then return end
+                end
+            elseif key ~= "Return" and key ~= "KP_Enter" then
+                keys = {}
             end
-        elseif key ~= "Return" and key ~= "KP_Enter" then
-            keys = {}
-        end
-        keygrabber.stop(collect)
-        choice = table.concat(keys)
-        if choice then
-            logger.print("fine", "Chosen: " .. choice)
-            if cls_map[choice] then
-                local cur = cls_map[cls_map.current]
-                callback(cur and cur.node or nil, cls_map[choice].node)
-                --force rearrange
-                awful.layout.arrange(screen)
+            keygrabber.stop(collect)
+            choice = table.concat(keys)
+            if choice then
+                logger.print("fine", "Chosen: " .. choice)
+                if cls_map[choice] then
+                    local cur = cls_map[cls_map.current]
+                    callback(cur and cur.node or nil, cls_map[choice].node)
+                    --force rearrange
+                    awful.layout.arrange(screen)
+                end
             end
-        end
-        for k, c in pairs(cls_map) do
-            if tonumber(k) then
-                c.label.visible = false
+            for k, c in pairs(cls_map) do
+                if tonumber(k) then
+                    c.label.visible = false
+                end
             end
-        end
     end)
 end
 
@@ -214,7 +221,7 @@ local function wrap_text(text, size, color, font)
 end
 
 local function select_node(callback, label_containers, label_only_containers)
-    local cls_map = {curr={}, digits=0}
+    local cls_map = {curr={}, digits=-1}
     cls_map.curr[0] = 0
     local screen = capi.mouse.screen
     local tag = awful.tag.selected(screen)
@@ -292,6 +299,7 @@ local function select_node(callback, label_containers, label_only_containers)
         return box
     end
     local function f(node, level)
+        if level == 0 then return end
         local name = cls_map.curr[level] or cls_map.curr[level-1]*10
         name = name+1
         cls_map.curr[level] = name
@@ -299,7 +307,7 @@ local function select_node(callback, label_containers, label_only_containers)
             or (not node.tip 
                 and label_containers) then
 
-            cls_map.digits = math.max(cls_map.digits, level+1)
+            cls_map.digits = math.max(cls_map.digits, level)
             if node:isStyled() then
                 --handle ordered containers
                 make_box(node.data.geometry.last, node, tostring(name))
@@ -311,9 +319,9 @@ local function select_node(callback, label_containers, label_only_containers)
     local tree = layout.get_active_tree()
     if tree then
         tree.top:traverse(f)
+        make_keygrabber(screen, cls_map, callback)
     end
 
-    make_keygrabber(screen, cls_map, callback)
 end
 
 local function select_all(callback) select_node(callback, true, false) end
@@ -327,20 +335,19 @@ function keys.swap()
     select_client(c)
 end
 
-function keys.focus(all)
+function keys.focus_node(all)
     local function c(current, choice)
         capi.client.focus = choice:getLastFocusedClient()
     end
     if all then
-        return utils.partial(select_all, c)
-    elseif all == nil then
-        select_client(c)
+        select_all(c)
     else
-        return utils.partial(select_client, c)
+        select_client(c)
     end
 end
 
-keys.focus_container = function() keys.focus(true) end
+keys.focus = function() keys.focus_node() end
+keys.focus_container = function() keys.focus_node(true) end
 
 function keys.select_use_container()
     --select container

@@ -20,7 +20,7 @@ There are currently two different types of layout, one that tiles and one that a
 Add some of the following to the `layouts` table in rc.lua
 
     leaved.layout.suit.tile.left
-    leaved.layout.suit.spiral
+    leaved.layout.suit.tile.right
 
 Additionally, add the following to your beautiful theme:
 
@@ -75,9 +75,9 @@ or (to allow focusing containers as well)
 
     awful.key({ modkey }, ";", leaved.keys.focus_container)
 
-To minimize the container of the current client, use `minContainer`:
+To minimize the container of the current client, use `min_container`:
 
-    awful.key({ modkey, "Shift" }, "n", leaved.keys.minContainer)
+    awful.key({ modkey, "Shift" }, "n", leaved.keys.min_container)
 
 
 Mouse actions
