@@ -25,19 +25,12 @@ local Tabbox = require "awesome-leaved.tabbox"
 local utils = require "awesome-leaved.utils"
 
 
-local layout = { mt = {},
-                 class = 'leaved',
-                 name = 'leaved',
-                 builders = require "awesome-leaved.builders",
+local layout = { name = 'leaved',
                  trees = {},
-                 forceNextOrder = nil,
                  arrange_lock = false}
 
 -- Globals
 local logger = utils.logger('off')
--- alias layout.trees
-local trees = layout.trees
-
 
 --draw and arrange functions
 function layout.draw_tree(self, screen, geometry, hides)
@@ -79,13 +72,13 @@ function layout.draw_tree(self, screen, geometry, hides)
                         geo.height = real_geo.height
                         geo.width = real_geo.width
                     end
-                    
+
                 end
             end
             geo.height = geo.height + tabbox_height
             geo.y = geo.y - tabbox_height
         else
-            --figure out if we're distributing over width or height            
+            --figure out if we're distributing over width or height
             local dimension, invariant, offset
             if self:isHorizontal() then
                 dimension = "width"
@@ -99,7 +92,7 @@ function layout.draw_tree(self, screen, geometry, hides)
 
 
             local current_offset = geo[offset]
-            
+
             --new vars
             local used = 0
             local unused = geo[dimension]
@@ -107,7 +100,7 @@ function layout.draw_tree(self, screen, geometry, hides)
 
             --figure out how many windows will be rendered
             for _, s in ipairs(self.children) do
-                remaining_fact = remaining_fact + 
+                remaining_fact = remaining_fact +
                 (s:inTree() and s.data.geometry.fact or 0)
             end
             --read just according to the minimum size hints
@@ -188,9 +181,7 @@ function layout.draw_tree(self, screen, geometry, hides)
     end
 end
 
-layout.redraw = layout.draw_tree
-
-function layout.arrange(builder, p)
+function layout.arrange(p)
     if layout.arrange_lock then
         logger.print('fine', "Encountered arrange lock")
         return
@@ -201,17 +192,20 @@ function layout.arrange(builder, p)
     local n = #p.clients
 
     local tag = awful.tag.selected(capi.mouse.screen)
-    local layout_name = awful.tag.getproperty(tag, "layout").name
+    local builder = awful.tag.getproperty(tag, "layout")
+
+    local trees = layout.trees
     if not trees[tag] then trees[tag] = {} end
-    if not trees[tag][layout_name] then
-        trees[tag][layout_name] = {
+    if not trees[tag][builder] then
+        trees[tag][builder] = {
             clients = nil,
             total_num = 0,
             top = Guitree:newContainer(true)
         }
+        builder:init(trees[tag][builder].top)
     end
 
-    local our_tree = trees[tag][layout_name]
+    local our_tree = trees[tag][builder]
     local top = our_tree.top
 
     local old_num = our_tree.total_num
@@ -233,8 +227,7 @@ function layout.arrange(builder, p)
         builder:handleNew(p,
                        our_tree,
                        lastFocusNode,
-                       initLayout,
-                       layout.forceNextOrder)
+                       initLayout)
 
         layout.forceNextOrder = nil
     end
@@ -262,21 +255,20 @@ end
 function layout.get_active_tree()
     local screen = capi.mouse.screen
     local tag = awful.tag.selected(screen)
-    local name = awful.tag.getproperty(tag, "layout").name
-    return layout.trees[tag] and layout.trees[tag][name]
+    local builder = awful.tag.getproperty(tag, "layout")
+
+    return layout.trees[tag] and layout.trees[tag][builder]
 end
 
 function layout.node_from_client(c)
-    local tag = awful.tag.selected(capi.mouse.screen)
-    local layout_name = awful.tag.getproperty(tag, "layout").name
-    local our_tree = layout.trees[tag][layout_name]
+    local our_tree = layout.get_active_tree()
     return our_tree.top:findWith("window", c.window)
 end
 
 --Function called when a client is unmanaged
 local function clean_tree(c)
     layout.arrange_lock = true
-    for _, tag in pairs(trees) do
+    for _, tag in pairs(layout.trees) do
         for _, tree in pairs(tag) do
             if tree then
                 tree.top:filterClientAttr("window", c.window)
@@ -288,42 +280,15 @@ end
 
 --Initialize the layout
 local function handle_signals(t)
-    if awful.tag.getproperty(t, "layout").class == "leaved" then
+    if awful.tag.getproperty(t, "layout").name == "leaved" then
         capi.client.connect_signal("unmanage", clean_tree)
-    elseif trees[t] then
+    elseif layout.trees[t] then
         capi.client.disconnect_signal("unmanage", clean_tree)
         --trees[t] = nil
     end
 end
 
 
---import all builders as separate layouts into suit
-layout.suit = {}
-
-local function make_layout(b)
-    local ret = {
-        b = b,
-        --name = b.name,
-        arrange = utils.partial(layout.arrange, b)
-    }
-    return setmetatable(ret, {__index=layout})
-end
-
-for b_name, b in pairs(layout.builders) do
-    --stupid quick hack
-    b.draw_tree = layout.draw_tree
-    if #b.versions == 1 then
-        layout.suit[b_name] = make_layout(b.versions[1])
-    else
-        layout.suit[b_name] = {}
-        local bs = layout.suit[b_name] 
-        for sub_b_name, sub_b in pairs(b.versions) do
-            bs[sub_b_name] = make_layout(sub_b)
-        end
-    end
-
-end
-
 awful.tag.attached_connect_signal(s, "property::layout", handle_signals)
 
-return setmetatable(layout, layout.mt)
+return layout

@@ -83,8 +83,192 @@ local function move(c, snap)
     end
     capi.mousegrabber.run(grabber, "fleur")
 end
-
 --- The exposed functions
 mouse.move = utils.guard(move, awful.mouse.client.move)
+
+--- Unmodified from awful.mouse
+local function client_resize_floating(c, corner, fixed_x, fixed_y)
+    local corner, x, y = mouse.client.corner(c, corner)
+    local g = c:geometry()
+
+    -- Warp mouse pointer
+    capi.mouse.coords({ x = x, y = y })
+
+    capi.mousegrabber.run(function (_mouse)
+                              for k, v in ipairs(_mouse.buttons) do
+                                  if v then
+                                      local ng
+                                      if corner == "bottom_right" then
+                                          ng = { width = _mouse.x - g.x,
+                                                 height = _mouse.y - g.y }
+                                      elseif corner == "bottom_left" then
+                                          ng = { x = _mouse.x,
+                                                 width = (g.x + g.width) - _mouse.x,
+                                                 height = _mouse.y - g.y }
+                                      elseif corner == "top_left" then
+                                          ng = { x = _mouse.x,
+                                                 width = (g.x + g.width) - _mouse.x,
+                                                 y = _mouse.y,
+                                                 height = (g.y + g.height) - _mouse.y }
+                                      else
+                                          ng = { width = _mouse.x - g.x,
+                                                 y = _mouse.y,
+                                                 height = (g.y + g.height) - _mouse.y }
+                                      end
+                                      if ng.width <= 0 then ng.width = nil end
+                                      if ng.height <= 0 then ng.height = nil end
+                                      if fixed_x then ng.width = g.width ng.x = g.x end
+                                      if fixed_y then ng.height = g.height ng.y = g.y end
+                                      c:geometry(ng)
+                                      -- Get real geometry that has been applied
+                                      -- in case we honor size hints
+                                      -- XXX: This should be rewritten when size
+                                      -- hints are available from Lua.
+                                      local rg = c:geometry()
+
+                                      if corner == "bottom_right" then
+                                          ng = {}
+                                      elseif corner == "bottom_left" then
+                                          ng = { x = (g.x + g.width) - rg.width  }
+                                      elseif corner == "top_left" then
+                                          ng = { x = (g.x + g.width) - rg.width,
+                                                 y = (g.y + g.height) - rg.height }
+                                      else
+                                          ng = { y = (g.y + g.height) - rg.height }
+                                      end
+                                      c:geometry({ x = ng.x, y = ng.y })
+                                      return true
+                                  end
+                              end
+                              return false
+                          end, corner .. "_corner")
+end
+
+local function client_resize_leaved(c)
+    local wa = capi.screen[c.screen].workarea
+    local mwfact = awful.tag.getmwfact()
+    local cursor = "cross"
+    local g = c:geometry()
+    local offset = 0
+    local x,y
+    if true then --lay == layout.suit.tile then
+        if g.height+15 > wa.height then
+            offset = g.height * .5
+            cursor = "sb_h_double_arrow"
+        elseif not (g.y+g.height+15 > wa.y+wa.height) then
+            offset = g.height
+        end
+        capi.mouse.coords({ x = wa.x + wa.width * mwfact, y = g.y + offset })
+    elseif lay == layout.suit.tile.left then
+        if g.height+15 >= wa.height then
+            offset = g.height * .5
+            cursor = "sb_h_double_arrow"
+        elseif not (g.y+g.height+15 > wa.y+wa.height) then
+            offset = g.height
+        end
+        capi.mouse.coords({ x = wa.x + wa.width * (1 - mwfact), y = g.y + offset })
+    elseif lay == layout.suit.tile.bottom then
+        if g.width+15 >= wa.width then
+            offset = g.width * .5
+            cursor = "sb_v_double_arrow"
+        elseif not (g.x+g.width+15 > wa.x+wa.width) then
+            offset = g.width
+        end
+        capi.mouse.coords({ y = wa.y + wa.height * mwfact, x = g.x + offset})
+    else
+        if g.width+15 >= wa.width then
+            offset = g.width * .5
+            cursor = "sb_v_double_arrow"
+        elseif not (g.x+g.width+15 > wa.x+wa.width) then
+            offset = g.width
+        end
+        capi.mouse.coords({ y = wa.y + wa.height * (1 - mwfact), x= g.x + offset })
+    end
+
+    capi.mousegrabber.run(function (_mouse)
+                              for k, v in ipairs(_mouse.buttons) do
+                                  if v then
+                                      local fact_x = (_mouse.x - wa.x) / wa.width
+                                      local fact_y = (_mouse.y - wa.y) / wa.height
+                                      local mwfact
+
+                                      local g = c:geometry()
+
+
+                                      -- we have to make sure we're not on the last visible client where we have to use different settings.
+                                      local wfact
+                                      local wfact_x, wfact_y
+                                      if (g.y+g.height+15) > (wa.y+wa.height) then
+                                          wfact_y = (g.y + g.height - _mouse.y) / wa.height
+                                      else
+                                          wfact_y = (_mouse.y - g.y) / wa.height
+                                      end
+
+                                      if (g.x+g.width+15) > (wa.x+wa.width) then
+                                          wfact_x = (g.x + g.width - _mouse.x) / wa.width
+                                      else
+                                          wfact_x = (_mouse.x - g.x) / wa.width
+                                      end
+
+
+                                      if true then--lay == layout.suit.tile then
+                                          mwfact = fact_x
+                                          wfact = wfact_y
+                                      elseif lay == layout.suit.tile.left then
+                                          mwfact = 1 - fact_x
+                                          wfact = wfact_y
+                                      elseif lay == layout.suit.tile.bottom then
+                                          mwfact = fact_y
+                                          wfact = wfact_x
+                                      else
+                                          mwfact = 1 - fact_y
+                                          wfact = wfact_x
+                                      end
+
+                                      awful.tag.setmwfact(math.min(math.max(mwfact, 0.01), 0.99), awful.tag.selected(c.screen))
+                                      --aclient.setwfact(math.min(math.max(wfact,0.01), 0.99), c)
+                                      --get client node, set fact
+                                      return true
+                                  end
+                              end
+                              return false
+                          end, cursor)
+end
+
+--- Resize a client.
+-- @param c The client to resize, or the focused one by default.
+-- @param corner The corner to grab on resize. Auto detected by default.
+function mouse.resize(c, corner)
+    local c = c or capi.client.focus
+
+    if not c then return end
+
+    if c.fullscreen
+        or c.type == "desktop"
+        or c.type == "splash"
+        or c.type == "dock" then
+        return
+    end
+
+    -- Do not allow maximized clients to be resized by mouse
+    local fixed_x = c.maximized_horizontal
+    local fixed_y = c.maximized_vertical
+
+    local lay = awful.layout.get(c.screen)
+
+    if lay == awful.layout.suit.floating or awful.client.floating.get(c) then
+        return client_resize_floating(c, corner, fixed_x, fixed_y)
+    elseif lay == awful.layout.suit.tile
+        or lay == awful.layout.suit.tile.left
+        or lay == awful.layout.suit.tile.top
+        or lay == awful.layout.suit.tile.bottom
+    then
+        return client_resize_tiled(c, lay)
+    elseif layout.is_active() then
+        return client_resize_leaved(c)
+    elseif lay == awful.layout.suit.magnifier then
+        return client_resize_magnifier(c, corner)
+    end
+end
 
 return mouse

@@ -1,8 +1,10 @@
 local Guitree = require "awesome-leaved.guitree"
 
-local spiral = {}
+local spiral = setmetatable({}, {__index=layout})
 
-function spiral.nextOrder(initLayout, lastFocusNode, requestedOrder)
+function spiral:init() end
+
+function spiral.nextOrder(initLayout, lastFocusNode)
     local ret
     if initLayout then
         if spiral.lastOrder == Guitree.horiz then
@@ -15,7 +17,7 @@ function spiral.nextOrder(initLayout, lastFocusNode, requestedOrder)
 
     local lastFocusGeo = lastFocusNode.data.c:geometry()
 
-    local nextOrder = requestedOrder
+    local nextOrder = self.forceNextOrder
     if not nextOrder then
         if (lastFocusGeo.width <= lastFocusGeo.height) then
             nextOrder = Guitree.vert
@@ -34,7 +36,7 @@ function spiral.nextOrder(initLayout, lastFocusNode, requestedOrder)
     return nextOrder
 end
 
-function spiral:handleNew(p, tree, lastFocusNode, initLayout, requestedOrder)
+function spiral:handleNew(p, tree, lastFocusNode, initLayout)
     local top = tree.top
 
     for i, c in ipairs(p.clients) do
@@ -47,7 +49,7 @@ function spiral:handleNew(p, tree, lastFocusNode, initLayout, requestedOrder)
                 local lastFocusParent = lastFocusNode.parent
                 local lastFocusOrder= lastFocusParent:getOrder()
 
-                local nextOrder = spiral.nextOrder(initLayout, lastFocusNode, requestedOrder)
+                local nextOrder = spiral.nextOrder(initLayout, lastFocusNode)
 
                 if lastFocusOrder ~= nextOrder then
                     lastFocusNode:add(newTip)
@@ -65,5 +67,4 @@ function spiral:handleNew(p, tree, lastFocusNode, initLayout, requestedOrder)
     end
 end
 
-spiral.versions = {spiral}
 return spiral

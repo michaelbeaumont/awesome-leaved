@@ -93,16 +93,21 @@ end
 
 
 function keys.scale(pc, orientation)
-    local f = function(node)
-        if orientation == 'opposite' then
-            if node.parent:isHorizontal() then
-                node:scaleNode(pc, Guitree.vert)
-            else
-                node:scaleNode(pc, Guitree.horiz)
-            end
+    local f
+    if orientation then
+        if orientation == Guitree.opp then
+            f = function(node) node.parent:scaleNode(pc) end
         else
-            node:scaleNode(pc, orientation)
+            f = function(node)
+                if node.parent.data.order == orientation then
+                    node:scaleNode(pc) 
+                else
+                    node.parent:scaleNode(pc)
+                end
+            end
         end
+    else
+        f = function(node) node:scaleNode(pc) end
     end
     return utils.partial(change_focused, f)
 end
@@ -111,7 +116,7 @@ function keys.scaleFocused(pc)
     return keys.scale(pc, nil)
 end
 function keys.scaleOpposite(pc)
-    return keys.scale(pc, 'opposite')
+    return keys.scale(pc, Guitree.opp)
 end
 
 function keys.scaleH(pc)
@@ -159,7 +164,7 @@ local function make_keygrabber(screen, cls_map, callback)
             if tonumber(k) then
                 if tostring(k):find(choice) then
                     possible = true
-                else--if not choice:find(k) then
+                else
                     c.label.visible = false
                 end
             end

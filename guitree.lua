@@ -258,10 +258,10 @@ function Guitree:getSizeHints()
     return sh
 end
 
-function Guitree:scaleNode(pc, direction)
+function Guitree:scaleNode(pc)
     if not self.parent then
         return
-    elseif not direction or self.parent.data.order == direction then
+    else
         local old_fact = self.data.geometry.fact
         local total_fact = 0
         for _, c in ipairs(self.parent.children) do
@@ -273,8 +273,6 @@ function Guitree:scaleNode(pc, direction)
             return
         end
         self.data.geometry.fact = old_fact * (1+pc/100)
-    else
-        self.parent:scaleNode(pc, direction)
     end
 end
 
