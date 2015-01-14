@@ -47,12 +47,11 @@ local function move(c, snap)
     local function grabber(_mouse)
         for k, v in ipairs(_mouse.buttons) do
             if v then
-                local lay = awful.layout.get(c.screen)
-                if lay == awful.layout.suit.floating or awful.client.floating.get(c) then
+                if awful.client.floating.get(c) then
                     local x = _mouse.x - dist_x
                     local y = _mouse.y - dist_y
-                    c:geometry(mouse.client.snap(c, snap, x, y, fixed_x, fixed_y))
-                elseif lay ~= awful.layout.suit.magnifier then
+                    c:geometry(awful.mouse.client.snap(c, snap, x, y, fixed_x, fixed_y))
+                else
                     -- Only move the client to the mouse
                     -- screen if the target screen is not
                     -- floating.
@@ -60,19 +59,15 @@ local function move(c, snap)
                     if awful.layout.get(capi.mouse.screen) == awful.layout.suit.floating then
                         local x = _mouse.x - dist_x
                         local y = _mouse.y - dist_y
-                        c:geometry(mouse.client.snap(c, snap, x, y, fixed_x, fixed_y))
+                        c:geometry(awful.mouse.client.snap(c, snap, x, y, fixed_x, fixed_y))
                     else
                         c.screen = capi.mouse.screen
                     end
-                    if awful.layout.get(c.screen) ~= awful.layout.suit.floating then
-                        local c_u_m = awful.mouse.client_under_pointer()
-                        if c_u_m and not awful.client.floating.get(c_u_m) then
-                            if c_u_m ~= c then
-                                --here do something 
-                                --local n_u_m = find node for c_u_m
-                                node:swap(layout.node_from_client(c_u_m))
-                                awful.layout.arrange(c.screen)
-                            end
+                    local c_u_m = awful.mouse.client_under_pointer()
+                    if c_u_m and not awful.client.floating.get(c_u_m) then
+                        if c_u_m ~= c then
+                            node:swap(layout.node_from_client(c_u_m))
+                            awful.layout.arrange(c.screen)
                         end
                     end
                 end
@@ -87,8 +82,126 @@ end
 mouse.move = utils.guard(move, awful.mouse.client.move)
 
 --- Unmodified from awful.mouse
+local function client_resize_magnifier(c, corner)
+    local corner, x, y = awful.mouse.client.corner(c, corner)
+    capi.mouse.coords({ x = x, y = y })
+
+    local wa = capi.screen[c.screen].workarea
+    local center_x = wa.x + wa.width / 2
+    local center_y = wa.y + wa.height / 2
+    local maxdist_pow = (wa.width^2 + wa.height^2) / 4
+
+    capi.mousegrabber.run(function (_mouse)
+                              for k, v in ipairs(_mouse.buttons) do
+                                  if v then
+                                      local dx = center_x - _mouse.x
+                                      local dy = center_y - _mouse.y
+                                      local dist = dx^2 + dy^2
+
+                                      -- New master width factor
+                                      local mwfact = dist / maxdist_pow
+                                      awful.tag.setmwfact(math.min(math.max(0.01, mwfact), 0.99), awful.tag.selected(c.screen))
+                                      return true
+                                  end
+                              end
+                              return false
+                          end, corner .. "_corner")
+end
+local function client_resize_tiled(c, lay)
+    local wa = capi.screen[c.screen].workarea
+    local mwfact = awful.tag.getmwfact()
+    local cursor
+    local g = c:geometry()
+    local offset = 0
+    local x,y
+    if lay == awful.layout.suit.tile then
+        cursor = "cross"
+        if g.height+15 > wa.height then
+            offset = g.height * .5
+            cursor = "sb_h_double_arrow"
+        elseif not (g.y+g.height+15 > wa.y+wa.height) then
+            offset = g.height
+        end
+        capi.mouse.coords({ x = wa.x + wa.width * mwfact, y = g.y + offset })
+    elseif lay == awful.layout.suit.tile.left then
+        cursor = "cross"
+        if g.height+15 >= wa.height then
+            offset = g.height * .5
+            cursor = "sb_h_double_arrow"
+        elseif not (g.y+g.height+15 > wa.y+wa.height) then
+            offset = g.height
+        end
+        capi.mouse.coords({ x = wa.x + wa.width * (1 - mwfact), y = g.y + offset })
+    elseif lay == awful.layout.suit.tile.bottom then
+        cursor = "cross"
+        if g.width+15 >= wa.width then
+            offset = g.width * .5
+            cursor = "sb_v_double_arrow"
+        elseif not (g.x+g.width+15 > wa.x+wa.width) then
+            offset = g.width
+        end
+        capi.mouse.coords({ y = wa.y + wa.height * mwfact, x = g.x + offset})
+    else
+        cursor = "cross"
+        if g.width+15 >= wa.width then
+            offset = g.width * .5
+            cursor = "sb_v_double_arrow"
+        elseif not (g.x+g.width+15 > wa.x+wa.width) then
+            offset = g.width
+        end
+        capi.mouse.coords({ y = wa.y + wa.height * (1 - mwfact), x= g.x + offset })
+    end
+
+    capi.mousegrabber.run(function (_mouse)
+                              for k, v in ipairs(_mouse.buttons) do
+                                  if v then
+                                      local fact_x = (_mouse.x - wa.x) / wa.width
+                                      local fact_y = (_mouse.y - wa.y) / wa.height
+                                      local mwfact
+
+                                      local g = c:geometry()
+
+
+                                      -- we have to make sure we're not on the last visible client where we have to use different settings.
+                                      local wfact
+                                      local wfact_x, wfact_y
+                                      if (g.y+g.height+15) > (wa.y+wa.height) then
+                                          wfact_y = (g.y + g.height - _mouse.y) / wa.height
+                                      else
+                                          wfact_y = (_mouse.y - g.y) / wa.height
+                                      end
+
+                                      if (g.x+g.width+15) > (wa.x+wa.width) then
+                                          wfact_x = (g.x + g.width - _mouse.x) / wa.width
+                                      else
+                                          wfact_x = (_mouse.x - g.x) / wa.width
+                                      end
+
+
+                                      if lay == awful.layout.suit.tile then
+                                          mwfact = fact_x
+                                          wfact = wfact_y
+                                      elseif lay == awful.layout.suit.tile.left then
+                                          mwfact = 1 - fact_x
+                                          wfact = wfact_y
+                                      elseif lay == awful.layout.suit.tile.bottom then
+                                          mwfact = fact_y
+                                          wfact = wfact_x
+                                      else
+                                          mwfact = 1 - fact_y
+                                          wfact = wfact_x
+                                      end
+
+                                      awful.tag.setmwfact(math.min(math.max(mwfact, 0.01), 0.99), awful.tag.selected(c.screen))
+                                      awful.client.setwfact(math.min(math.max(wfact,0.01), 0.99), c)
+                                      return true
+                                  end
+                              end
+                              return false
+                          end, cursor)
+end
 local function client_resize_floating(c, corner, fixed_x, fixed_y)
-    local corner, x, y = mouse.client.corner(c, corner)
+    local corner, x, y = awful.mouse.client.corner(c, corner)
     local g = c:geometry()
 
     -- Warp mouse pointer
@@ -144,14 +257,15 @@ local function client_resize_floating(c, corner, fixed_x, fixed_y)
                           end, corner .. "_corner")
 end
 
-local function client_resize_leaved(c)
+--special function for leaved
+local function client_resize_leaved(c, lay)
     local wa = capi.screen[c.screen].workarea
     local mwfact = awful.tag.getmwfact()
     local cursor = "cross"
     local g = c:geometry()
     local offset = 0
     local x,y
-    if true then --lay == layout.suit.tile then
+    if lay == layout.suit.tile.right then
         if g.height+15 > wa.height then
             offset = g.height * .5
             cursor = "sb_h_double_arrow"
@@ -211,7 +325,7 @@ local function client_resize_leaved(c)
                                       end
 
 
-                                      if true then--lay == layout.suit.tile then
+                                      if lay == layout.suit.tile.right then--lay == layout.suit.tile then
                                           mwfact = fact_x
                                           wfact = wfact_y
                                       elseif lay == layout.suit.tile.left then
@@ -226,6 +340,8 @@ local function client_resize_leaved(c)
                                       end
 
                                       awful.tag.setmwfact(math.min(math.max(mwfact, 0.01), 0.99), awful.tag.selected(c.screen))
+                                      local node = layout.node_from_client(c)
+                                      node.data.geometry.fact = math.min(math.max(wfact,0.01), 0.99)
                                       --aclient.setwfact(math.min(math.max(wfact,0.01), 0.99), c)
                                       --get client node, set fact
                                       return true
@@ -265,7 +381,7 @@ function mouse.resize(c, corner)
     then
         return client_resize_tiled(c, lay)
     elseif layout.is_active() then
-        return client_resize_leaved(c)
+        return client_resize_leaved(c, lay)
     elseif lay == awful.layout.suit.magnifier then
         return client_resize_magnifier(c, corner)
     end

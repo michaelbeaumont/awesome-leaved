@@ -19,8 +19,10 @@ There are currently two different types of layout, one that tiles and one that a
 
 Add some of the following to the `layouts` table in rc.lua
 
-    leaved.layout.suit.tile.left
     leaved.layout.suit.tile.right
+    leaved.layout.suit.tile.left
+    leaved.layout.suit.tile.bottom
+    leaved.layout.suit.tile.top
 
 Additionally, add the following to your beautiful theme:
 
@@ -83,12 +85,16 @@ To minimize the container of the current client, use `min_container`:
 Mouse actions
 -------------
 
-Unfortunately different functions are needed at the moment to support shifting clients around while using a leaved layout.
+Unfortunately different functions are needed at the moment to support shifting clients around and scaling while using a leaved layout.
 
 Change the following under `clientbuttons` or however you set mouse button bindings for clients:
 
     --awful.button({ modkey }, 1, awful.mouse.client.move),
     awful.button({ modkey }, 1, leaved.mouse.move),
+    --awful.button({ modkey }, 3, awful.mouse.client.resize))
+    awful.button({ modkey }, 3, leaved.mouse.resize))
+
+Note: support for resizing containers beyond the second level isn't yet complete
 
 TODO
 ----
