@@ -6,7 +6,7 @@ local Guitree = require "awesome-leaved.guitree"
 local utils = require "awesome-leaved.utils"
 local logger = utils.logger('off')
 
-local tile = setmetatable({}, {__index=layout})
+local tile = setmetatable({class="tile"}, {__index=layout})
 
 function tile:init(top)
     top:setOrder(self.order)

@@ -196,16 +196,16 @@ function layout.arrange(p)
 
     local trees = layout.trees
     if not trees[tag] then trees[tag] = {} end
-    if not trees[tag][builder] then
-        trees[tag][builder] = {
+    if not trees[tag][builder.class] then
+        trees[tag][builder.class] = {
             clients = nil,
             total_num = 0,
             top = Guitree:newContainer(true)
         }
-        builder:init(trees[tag][builder].top)
+        builder:init(trees[tag][builder.class].top)
     end
 
-    local our_tree = trees[tag][builder]
+    local our_tree = trees[tag][builder.class]
     local top = our_tree.top
 
     local old_num = our_tree.total_num
@@ -257,7 +257,7 @@ function layout.get_active_tree()
     local tag = awful.tag.selected(screen)
     local builder = awful.tag.getproperty(tag, "layout")
 
-    return layout.trees[tag] and layout.trees[tag][builder]
+    return layout.trees[tag] and layout.trees[tag][builder.class]
 end
 
 function layout.node_from_client(c)
@@ -265,26 +265,23 @@ function layout.node_from_client(c)
     return our_tree.top:findWith("window", c.window)
 end
 
---Function called when a client is unmanaged
-local function clean_tree(c)
-    layout.arrange_lock = true
-    for _, tag in pairs(layout.trees) do
-        for _, tree in pairs(tag) do
-            if tree then
-                tree.top:filterClientAttr("window", c.window)
-            end
+--Function to remove a client from a tag's tree
+local function clean_from_tag(c, tag)
+    local tagstree = layout.trees[tag]
+    if tagstree then
+        for _, tree in pairs(tagstree) do
+            tree.top:filterClientAttr("window", c.window)
         end
     end
-    layout.arrange_lock = false
 end
 
 --Initialize the layout
+local initialized = {}
 local function handle_signals(t)
-    if awful.tag.getproperty(t, "layout").name == "leaved" then
-        capi.client.connect_signal("unmanage", clean_tree)
-    elseif layout.trees[t] then
-        capi.client.disconnect_signal("unmanage", clean_tree)
-        --trees[t] = nil
+    if awful.tag.getproperty(t, "layout").name == "leaved"
+    and not initialized[t] then
+        initialized[t] = true
+        capi.client.connect_signal("untagged", clean_from_tag)
     end
 end
 
