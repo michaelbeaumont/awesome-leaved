@@ -12,6 +12,7 @@ local capi =
         mousegrabber = mousegrabber,
     }
 
+local Guitree = require "awesome-leaved.guitree"
 local layout = require "awesome-leaved.layout"
 local utils = require "awesome-leaved.utils"
 
@@ -152,53 +153,59 @@ local function client_resize_tiled(c, lay)
         capi.mouse.coords({ y = wa.y + wa.height * (1 - mwfact), x= g.x + offset })
     end
 
-    capi.mousegrabber.run(function (_mouse)
-                              for k, v in ipairs(_mouse.buttons) do
-                                  if v then
-                                      local fact_x = (_mouse.x - wa.x) / wa.width
-                                      local fact_y = (_mouse.y - wa.y) / wa.height
-                                      local mwfact
+    capi.mousegrabber.run(
+        function (_mouse)
+            for k, v in ipairs(_mouse.buttons) do
+                if v then
+                    local fact_x = (_mouse.x - wa.x) / wa.width
+                    local fact_y = (_mouse.y - wa.y) / wa.height
+                    local mwfact
 
-                                      local g = c:geometry()
-
-
-                                      -- we have to make sure we're not on the last visible client where we have to use different settings.
-                                      local wfact
-                                      local wfact_x, wfact_y
-                                      if (g.y+g.height+15) > (wa.y+wa.height) then
-                                          wfact_y = (g.y + g.height - _mouse.y) / wa.height
-                                      else
-                                          wfact_y = (_mouse.y - g.y) / wa.height
-                                      end
-
-                                      if (g.x+g.width+15) > (wa.x+wa.width) then
-                                          wfact_x = (g.x + g.width - _mouse.x) / wa.width
-                                      else
-                                          wfact_x = (_mouse.x - g.x) / wa.width
-                                      end
+                    local g = c:geometry()
 
 
-                                      if lay == awful.layout.suit.tile then
-                                          mwfact = fact_x
-                                          wfact = wfact_y
-                                      elseif lay == awful.layout.suit.tile.left then
-                                          mwfact = 1 - fact_x
-                                          wfact = wfact_y
-                                      elseif lay == awful.layout.suit.tile.bottom then
-                                          mwfact = fact_y
-                                          wfact = wfact_x
-                                      else
-                                          mwfact = 1 - fact_y
-                                          wfact = wfact_x
-                                      end
+                    -- we have to make sure we're not on the last
+                    -- visible client where we have to use different settings.
+                    local wfact
+                    local wfact_x, wfact_y
+                    if (g.y+g.height+15) > (wa.y+wa.height) then
+                        wfact_y = (g.y + g.height - _mouse.y) / wa.height
+                    else
+                        wfact_y = (_mouse.y - g.y) / wa.height
+                    end
 
-                                      awful.tag.setmwfact(math.min(math.max(mwfact, 0.01), 0.99), awful.tag.selected(c.screen))
-                                      awful.client.setwfact(math.min(math.max(wfact,0.01), 0.99), c)
-                                      return true
-                                  end
-                              end
-                              return false
-                          end, cursor)
+                    if (g.x+g.width+15) > (wa.x+wa.width) then
+                        wfact_x = (g.x + g.width - _mouse.x) / wa.width
+                    else
+                        wfact_x = (_mouse.x - g.x) / wa.width
+                    end
+
+
+                    if lay == awful.layout.suit.tile then
+                        mwfact = fact_x
+                        wfact = wfact_y
+                    elseif lay == awful.layout.suit.tile.left then
+                        mwfact = 1 - fact_x
+                        wfact = wfact_y
+                    elseif lay == awful.layout.suit.tile.bottom then
+                        mwfact = fact_y
+                        wfact = wfact_x
+                    else
+                        mwfact = 1 - fact_y
+                        wfact = wfact_x
+                    end
+
+                    awful.tag.setmwfact(
+                        math.min(
+                            math.max(mwfact, 0.01),
+                            0.99),
+                        awful.tag.selected(c.screen))
+                    awful.client.setwfact(math.min(math.max(wfact,0.01), 0.99), c)
+                    return true
+                end
+            end
+            return false
+        end, cursor)
 end
 local function client_resize_floating(c, corner, fixed_x, fixed_y)
     local corner, x, y = awful.mouse.client.corner(c, corner)
@@ -207,65 +214,69 @@ local function client_resize_floating(c, corner, fixed_x, fixed_y)
     -- Warp mouse pointer
     capi.mouse.coords({ x = x, y = y })
 
-    capi.mousegrabber.run(function (_mouse)
-                              for k, v in ipairs(_mouse.buttons) do
-                                  if v then
-                                      local ng
-                                      if corner == "bottom_right" then
-                                          ng = { width = _mouse.x - g.x,
-                                                 height = _mouse.y - g.y }
-                                      elseif corner == "bottom_left" then
-                                          ng = { x = _mouse.x,
-                                                 width = (g.x + g.width) - _mouse.x,
-                                                 height = _mouse.y - g.y }
-                                      elseif corner == "top_left" then
-                                          ng = { x = _mouse.x,
-                                                 width = (g.x + g.width) - _mouse.x,
-                                                 y = _mouse.y,
-                                                 height = (g.y + g.height) - _mouse.y }
-                                      else
-                                          ng = { width = _mouse.x - g.x,
-                                                 y = _mouse.y,
-                                                 height = (g.y + g.height) - _mouse.y }
-                                      end
-                                      if ng.width <= 0 then ng.width = nil end
-                                      if ng.height <= 0 then ng.height = nil end
-                                      if fixed_x then ng.width = g.width ng.x = g.x end
-                                      if fixed_y then ng.height = g.height ng.y = g.y end
-                                      c:geometry(ng)
-                                      -- Get real geometry that has been applied
-                                      -- in case we honor size hints
-                                      -- XXX: This should be rewritten when size
-                                      -- hints are available from Lua.
-                                      local rg = c:geometry()
+    capi.mousegrabber.run(
+        function (_mouse)
+            for k, v in ipairs(_mouse.buttons) do
+                if v then
+                    local ng
+                    if corner == "bottom_right" then
+                        ng = { width = _mouse.x - g.x,
+                               height = _mouse.y - g.y }
+                    elseif corner == "bottom_left" then
+                        ng = { x = _mouse.x,
+                               width = (g.x + g.width) - _mouse.x,
+                               height = _mouse.y - g.y }
+                    elseif corner == "top_left" then
+                        ng = { x = _mouse.x,
+                               width = (g.x + g.width) - _mouse.x,
+                               y = _mouse.y,
+                               height = (g.y + g.height) - _mouse.y }
+                    else
+                        ng = { width = _mouse.x - g.x,
+                               y = _mouse.y,
+                               height = (g.y + g.height) - _mouse.y }
+                    end
+                    if ng.width <= 0 then ng.width = nil end
+                    if ng.height <= 0 then ng.height = nil end
+                    if fixed_x then ng.width = g.width ng.x = g.x end
+                    if fixed_y then ng.height = g.height ng.y = g.y end
+                    c:geometry(ng)
+                    -- Get real geometry that has been applied
+                    -- in case we honor size hints
+                    -- XXX: This should be rewritten when size
+                    -- hints are available from Lua.
+                    local rg = c:geometry()
 
-                                      if corner == "bottom_right" then
-                                          ng = {}
-                                      elseif corner == "bottom_left" then
-                                          ng = { x = (g.x + g.width) - rg.width  }
-                                      elseif corner == "top_left" then
-                                          ng = { x = (g.x + g.width) - rg.width,
-                                                 y = (g.y + g.height) - rg.height }
-                                      else
-                                          ng = { y = (g.y + g.height) - rg.height }
-                                      end
-                                      c:geometry({ x = ng.x, y = ng.y })
-                                      return true
-                                  end
-                              end
-                              return false
-                          end, corner .. "_corner")
+                    if corner == "bottom_right" then
+                        ng = {}
+                    elseif corner == "bottom_left" then
+                        ng = { x = (g.x + g.width) - rg.width  }
+                    elseif corner == "top_left" then
+                        ng = { x = (g.x + g.width) - rg.width,
+                               y = (g.y + g.height) - rg.height }
+                    else
+                        ng = { y = (g.y + g.height) - rg.height }
+                    end
+                    c:geometry({ x = ng.x, y = ng.y })
+                    return true
+                end
+            end
+            return false
+        end, corner .. "_corner")
 end
 
 --special function for leaved
-local function client_resize_leaved(c, lay)
+local function client_resize_leaved(c, lay, corner)
+    local node = layout.node_from_client(c)
+    local parent_node = node.parent
     local wa = capi.screen[c.screen].workarea
     local mwfact = awful.tag.getmwfact()
     local cursor = "cross"
     local g = c:geometry()
     local offset = 0
-    local x,y
-    if lay == layout.suit.tile.right then
+    --local x,y
+    local corner, x, y = awful.mouse.client.corner(c, corner)
+    --[[if lay == layout.suit.tile.right then
         if g.height+15 > wa.height then
             offset = g.height * .5
             cursor = "sb_h_double_arrow"
@@ -297,58 +308,103 @@ local function client_resize_leaved(c, lay)
             offset = g.width
         end
         capi.mouse.coords({ y = wa.y + wa.height * (1 - mwfact), x= g.x + offset })
-    end
+        end
+--]]
 
-    capi.mousegrabber.run(function (_mouse)
-                              for k, v in ipairs(_mouse.buttons) do
-                                  if v then
-                                      local fact_x = (_mouse.x - wa.x) / wa.width
-                                      local fact_y = (_mouse.y - wa.y) / wa.height
-                                      local mwfact
+    capi.mouse.coords({ x = x, y = y })
+    capi.mousegrabber.run(
+        function (_mouse)
+            for k, v in ipairs(_mouse.buttons) do
+                if v then
+                    local g = c:geometry()
+                    local p_g = parent_node.data.geometry.last
+                    if parent_node.parent then
+                        local pp_g = {}
+                        local order = parent_node:getOrder()
+                        if parent_node.parent.parent then
+                            pp_g = parent_node.parent.data.geometry.last
+                        else
+                            local split_dim, whole_dim
+                            if parent_node.parent:getOrder() == Guitree.horiz then
+                                split_dim = "width"
+                                whole_dim = "height"
+                                split_offset = "x"
+                                whole_offset = "y"
+                            else
+                                split_dim = "height"
+                                whole_dim = "width"
+                                split_offset = "y"
+                                whole_offset = "x"
+                            end
+                            local mwfact = awful.tag.getmwfact()
+                            local nmaster = awful.tag.getnmaster()
+                            if parent_node.index > nmaster then
+                                pp_g[split_dim] = (1-mwfact)*wa[split_dim]
+                                pp_g[whole_dim] = wa[whole_dim]
+                                pp_g[split_offset] = mwfact*wa[split_dim]
+                                pp_g[whole_offset] = 0
+                            end
+                        end
 
-                                      local g = c:geometry()
+                        local cfact, pfact
+                        if order == Guitree.horiz then
+                            cfact = 1-(_mouse.x - p_g.x)/p_g.width
+                            pfact = 1-(_mouse.y - pp_g.y)/pp_g.height
+                        else
+                            cfact = 1-(_mouse.y - g.y)/p_g.height
+                            pfact = 1-(_mouse.x - p_g.x)/pp_g.width
+                        end
+                        mwfact = math.min(math.max(pfact,0.01), 0.99)
+                        node.data.geometry.fact = math.min(math.max(cfact,0.01), 0.99)
+                        node.parent.data.geometry.fact = mwfact
 
+                        awful.layout.arrange(c.screen)
+                        awesome.emit_signal("refresh")
 
-                                      -- we have to make sure we're not on the last visible client where we have to use different settings.
-                                      local wfact
-                                      local wfact_x, wfact_y
-                                      if (g.y+g.height+15) > (wa.y+wa.height) then
-                                          wfact_y = (g.y + g.height - _mouse.y) / wa.height
-                                      else
-                                          wfact_y = (_mouse.y - g.y) / wa.height
-                                      end
+                    else
+                        local fact_x = (_mouse.x - wa.x) / wa.width
+                        local fact_y = (_mouse.y - wa.y) / wa.height
+                        local mwfact
 
-                                      if (g.x+g.width+15) > (wa.x+wa.width) then
-                                          wfact_x = (g.x + g.width - _mouse.x) / wa.width
-                                      else
-                                          wfact_x = (_mouse.x - g.x) / wa.width
-                                      end
+                        -- we have to make sure we're not on the last
+                        -- visible client where we have to use different settings.
+                        local wfact
+                        local wfact_x, wfact_y
+                        if (g.y+g.height+15) > (wa.y+wa.height) then
+                            wfact_y = (g.y + g.height - _mouse.y) / wa.height
+                        else
+                            wfact_y = (_mouse.y - g.y) / wa.height
+                        end
 
+                        if (g.x+g.width+15) > (wa.x+wa.width) then
+                            wfact_x = (g.x + g.width - _mouse.x) / wa.width
+                        else
+                            wfact_x = (_mouse.x - g.x) / wa.width
+                        end
 
-                                      if lay == layout.suit.tile.right then--lay == layout.suit.tile then
-                                          mwfact = fact_x
-                                          wfact = wfact_y
-                                      elseif lay == layout.suit.tile.left then
-                                          mwfact = 1 - fact_x
-                                          wfact = wfact_y
-                                      elseif lay == layout.suit.tile.bottom then
-                                          mwfact = fact_y
-                                          wfact = wfact_x
-                                      else
-                                          mwfact = 1 - fact_y
-                                          wfact = wfact_x
-                                      end
-
-                                      awful.tag.setmwfact(math.min(math.max(mwfact, 0.01), 0.99), awful.tag.selected(c.screen))
-                                      local node = layout.node_from_client(c)
-                                      node.data.geometry.fact = math.min(math.max(wfact,0.01), 0.99)
-                                      --aclient.setwfact(math.min(math.max(wfact,0.01), 0.99), c)
-                                      --get client node, set fact
-                                      return true
-                                  end
-                              end
-                              return false
-                          end, cursor)
+                        if lay == layout.suit.tile.right then
+                            mwfact = fact_x
+                            wfact = wfact_y
+                        elseif lay == layout.suit.tile.left then
+                            mwfact = 1 - fact_x
+                            wfact = wfact_y
+                        elseif lay == layout.suit.tile.bottom then
+                            mwfact = fact_y
+                            wfact = wfact_x
+                        else
+                            mwfact = 1 - fact_y
+                            wfact = wfact_x
+                        end
+                        local real_mwfact = math.min(math.max(mwfact, 0.01), 0.99)
+                        awful.tag.setmwfact(real_mwfact, awful.tag.selected(c.screen))
+                        node.data.geometry.fact = math.min(math.max(wfact,0.01), 0.99)
+                    end
+                    --get client node, set fact
+                    return true
+                end
+            end
+            return false
+        end, cursor)
 end
 
 --- Resize a client.
@@ -362,7 +418,8 @@ function mouse.resize(c, corner)
     if c.fullscreen
         or c.type == "desktop"
         or c.type == "splash"
-        or c.type == "dock" then
+        or c.type == "dock"
+    then
         return
     end
 
@@ -381,7 +438,7 @@ function mouse.resize(c, corner)
     then
         return client_resize_tiled(c, lay)
     elseif layout.is_active() then
-        return client_resize_leaved(c, lay)
+        return client_resize_leaved(c, lay, corner)
     elseif lay == awful.layout.suit.magnifier then
         return client_resize_magnifier(c, corner)
     end

@@ -38,12 +38,13 @@ end
 
 function spiral:handleNew(p, tree, lastFocusNode, initLayout)
     local top = tree.top
+    local newTip
 
     for i, c in ipairs(p.clients) do
         --maybe unnecessarily slow? could maintain a list of tracked clients
         local possibleChild = top:findWith("window", c.window)
         if not possibleChild then
-            local newTip = Guitree:newClient(c)
+            newTip = Guitree:newClient(c)
 
             if lastFocusNode then
                 local lastFocusParent = lastFocusNode.parent
@@ -65,6 +66,7 @@ function spiral:handleNew(p, tree, lastFocusNode, initLayout)
             lastFocusNode = possibleChild
         end
     end
+    return newTip
 end
 
 return spiral

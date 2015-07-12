@@ -4,7 +4,7 @@ local awful = {
 local layout = require "awesome-leaved.layout.layout"
 local Guitree = require "awesome-leaved.guitree"
 local utils = require "awesome-leaved.utils"
-local logger = utils.logger('off')
+local logger = utils.cmdlogger('fatal')
 
 local tile = setmetatable({class="tile"}, {__index=layout})
 
@@ -184,12 +184,13 @@ function tile:handleNew(p, tree, lastFocusNode, initLayout)
     local t = awful.tag.selected(p.screen)
 
     local cls = p.clients
+    local newTip
 
     for i, c in ipairs(p.clients) do
         --maybe unnecessarily slow? could maintain a list of tracked clients
         local possibleChild = top:findWith("window", c.window)
         if not possibleChild then
-            local newTip = Guitree:newClient(c)
+            newTip = Guitree:newClient(c)
 
             if lastFocusNode and self.forceNextOrder then
                 local lastFocusParent = lastFocusNode.parent
@@ -199,12 +200,13 @@ function tile:handleNew(p, tree, lastFocusNode, initLayout)
                 newTip.parent:setOrder(self.forceNextOrder)
             else
                 top:add(newTip)
+                lastFocusNode = newTip
             end
-            lastFocusNode = newTip
-        else
+        elseif not lastFocusNode then
             lastFocusNode = possibleChild
         end
     end
+    return newTip
 end
 
 function tile:new(order, flip)

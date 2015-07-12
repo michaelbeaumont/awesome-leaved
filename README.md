@@ -8,6 +8,8 @@ Features
 
 Similar to i3, clients can be ordered within containers and vertically or horizontally arranged. They can also be "stacked" or "tabbed", and the focused window (client or container) and a list of windows in the container will be shown above, as a stack or tabs.
 
+**Note**: This library is developed using the git version of awesome, there may be bugs caused by using earlier versions
+
 Instructions
 ------------
 
@@ -65,7 +67,7 @@ Or scale based on the focused client and its opposite direction:
 
 `focusedScale` will always make the current client bigger or smaller in its container and `oppositeScale` will always scale in the opposing direction.
 
-To swap two clients in the tree, use `swap`:
+To swap the active client with another in the tree, use `swap`:
 
     awful.key({ modkey }, "'", leaved.keys.swap)
 
@@ -81,9 +83,14 @@ To minimize the container of the current client, use `min_container`:
 
     awful.key({ modkey, "Shift" }, "n", leaved.keys.min_container)
 
+*Experimental* To select and move clients around, bind `select_use_container`:
+
+    awful.key({ modkey, "Shift" }, "u", leaved.keys.select_use_container)
 
 Mouse actions
 -------------
+
+*Experimental*
 
 Unfortunately different functions are needed at the moment to support shifting clients around and scaling while using a leaved layout.
 
@@ -94,18 +101,17 @@ Change the following under `clientbuttons` or however you set mouse button bindi
     --awful.button({ modkey }, 3, awful.mouse.client.resize))
     awful.button({ modkey }, 3, leaved.mouse.resize))
 
-Note: support for resizing containers beyond the second level isn't yet complete
-
 TODO
 ----
 
-This project is incomplete, there are a couple (a lot of) things missing and just as many bugs
+This project is incomplete, there are a ~~couple~~ a lot of things missing and just as many bugs
 
 * Best way to hide non selected tab?
-* Allowing changing how nodes are labelled when using swap/focus
+* Complete visual mode (e.g. labeling)
 * Add more using containers support
 * Add mouse scaling support
 * Add replacing node with new window
+* Switch tile.lua back to using full tree support not hacked up version
 * And more
 
 Bugs

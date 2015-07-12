@@ -319,8 +319,8 @@ end
 function Guitree:focus(node)
     --do nothing when focusing "ignored" and not minimized clients
     --i.e. floating clients
-    if (not self:inTree()
-        and not self.data.geometry.minimized) then
+    if not self:inTree()
+        and not self.data.geometry.minimized then
         return
     end
     --we must focus all of our parents

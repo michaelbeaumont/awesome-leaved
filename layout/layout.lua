@@ -30,7 +30,7 @@ local layout = { name = 'leaved',
                  arrange_lock = false}
 
 -- Globals
-local logger = utils.logger('off')
+local logger = utils.logger('fatal', 'fatal')
 
 --draw and arrange functions
 function layout.draw_tree(self, screen, geometry, hides)
@@ -107,8 +107,8 @@ function layout.draw_tree(self, screen, geometry, hides)
             for _, s in ipairs(self.children) do
                 --retrieve size hints
                 local sh = s.data.geometry.hints or s:getSizeHints()
-                if logger.fine then
-                  print("Size hints: w: " .. sh.width .. " h: " .. sh.height)
+                if logger.cmd.fine then
+                  logger.cmd.write("Size hints: w: " .. sh.width .. " h: " .. sh.height)
                 end
                 s.data.geometry.hints = nil
 
@@ -218,16 +218,16 @@ function layout.arrange(p)
 
     if changed > 0 then
         local lastFocusNode
-        local lastFocus = awful.client.focus.history.get(1, 0)
+        local lastFocus = awful.client.focus.history.get(p.screen, 1)
         if lastFocus and not awful.client.floating.get(lastFocus) then
             lastFocusNode = top:findWith("window", lastFocus.window)
         end
 
         --we have new clients
         builder:handleNew(p,
-                       our_tree,
-                       lastFocusNode,
-                       initLayout)
+                          our_tree,
+                          lastFocusNode,
+                          initLayout)
 
         layout.forceNextOrder = nil
     end
@@ -241,7 +241,7 @@ function layout.arrange(p)
         c.below = true
     end
 
-    if logger.info then top:show() end
+    if logger.cmd.info then top:show() end
 
     layout.arrange_lock = false
 end

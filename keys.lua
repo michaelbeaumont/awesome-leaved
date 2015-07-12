@@ -21,7 +21,7 @@ local Tabbox = require "awesome-leaved.tabbox"
 local layout = require "awesome-leaved.layout"
 local utils = require "awesome-leaved.utils"
 
-local logger = utils.logger('off')
+local logger = utils.logger('fatal')
 
 local keys = { }
 
@@ -47,6 +47,7 @@ function keys.splitOpp() layout.forceNextOrder = Guitree.opp end
 
 local function change_focused(changer)
     --get all the boring local variables
+    --TODO use p.screen instead of 1
     local lastFocus = awful.client.focus.history.get(1, 0)
     local screen_index = capi.mouse.screen
     local tag = awful.tag.selected(screen_index)
@@ -89,6 +90,7 @@ function keys.shiftStyle()
         function(node)
             node.parent:shiftStyle()
         end)
+    awesome.emit_signal("refresh")
 end
 
 
@@ -354,6 +356,7 @@ end
 keys.focus = function() keys.focus_node() end
 keys.focus_container = function() keys.focus_node(true) end
 
+--TODO complete this mode
 function keys.select_use_container()
     --select container
     --select orientation (show with overlays)
@@ -382,22 +385,23 @@ function keys.select_use_container()
         if true then --awesome.composite_manager_running then
             geo.width = wi
             geo.height = he
-            box = wibox({screen = screen,
-                               ontop=true,
-                               visible=true})
-
-            local bgb = wibox.widget.background()
-            local label = wibox.widget.textbox()
-            local frame = wibox.layout.margin(bgb, 10, 10, 10, 10)
-            box:set_widget(frame)
+            if not box then
+                box = wibox({screen = screen,
+                             ontop=true,
+                             visible=true})
+                local bgb = wibox.widget.background()
+                local frame = wibox.layout.margin(bgb, 10, 10, 10, 10)
+                box:set_widget(frame)
+                local color = '#000000'
+                box:set_bg(color .. '00')
+                bgb:set_bg(color .. '44')
+                frame:set_color(color .. '55')
+            end
             box:geometry(geo)
-            local color = '#000000'
-            box:set_bg(color .. '00')
-            bgb:set_bg(color .. '44')
-            frame:set_color(color .. '55')
         else
             wi, he = label:fit(c_geo.width, c_geo.height)
         end
+        box.visible = true
 
         return box
     end
@@ -410,7 +414,7 @@ function keys.select_use_container()
             local last = keys[#keys]
             local act_par = active.parent
             local rev = false
-            if act_par and active.parent:getOrder() == Guitree.vert then
+            if act_par and act_par:getOrder() == Guitree.vert then
                 rev = true
             end
             if last == "Up" and not rev 
@@ -418,7 +422,8 @@ function keys.select_use_container()
                 --up to the left
                 if active.parent.parent then
                     act_par:detach(active.index)
-                    act_par.parent:add(active, active.index)
+                    local ind = act_par.index
+                    act_par.parent:add(active, ind)
                 end
             elseif last == "Down" and not rev 
                 or last == "Right" and rev then
@@ -440,6 +445,7 @@ function keys.select_use_container()
                 end
             end
             awful.layout.arrange(screen_index)
+            awesome.emit_signal("refresh")
             box = outline(active, box)
         end,
         wait=true}
@@ -480,7 +486,7 @@ function keys.select_use_container()
         make_vimkeygrabber(map)
     end
     --select a container and start vim mode
-    select_container(c)
+    select_all(c)
 end
 
 return keys
