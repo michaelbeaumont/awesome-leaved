@@ -28,7 +28,10 @@ Add some of the following to the `layouts` table in rc.lua
 
 Additionally, add the following to your beautiful theme:
 
-    theme.layout_leaved = "~/.config/awesome/awesome-leaved/leaved.png"
+    theme.layout_leavedright = "~/.config/awesome/awesome-leaved/icons/leavedright.png"
+    theme.layout_leavedleft = "~/.config/awesome/awesome-leaved/icons/leavedleft.png"
+    theme.layout_leavedbottom = "~/.config/awesome/awesome-leaved/icons/leavedbottom.png"
+    theme.layout_leavedtop = "~/.config/awesome/awesome-leaved/icons/leavedtop.png"
 
 using the correct path to the image file in this repository.
 

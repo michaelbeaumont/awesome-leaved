@@ -25,7 +25,7 @@ local Tabbox = require "awesome-leaved.tabbox"
 local utils = require "awesome-leaved.utils"
 
 
-local layout = { name = 'leaved',
+local layout = { leaved = true,
                  trees = {},
                  arrange_lock = false}
 
@@ -249,7 +249,7 @@ end
 function layout.is_active()
     local screen_index = capi.mouse.screen
     local tag = awful.tag.selected(screen_index)
-    return awful.tag.getproperty(tag, "layout").name == "leaved"
+    return awful.tag.getproperty(tag, "layout").leaved
 end
 
 function layout.get_active_tree()
@@ -278,7 +278,7 @@ end
 --Initialize the layout
 local initialized = {}
 local function handle_signals(t)
-    if awful.tag.getproperty(t, "layout").name == "leaved"
+    if awful.tag.getproperty(t, "layout").leaved
     and not initialized[t] then
         initialized[t] = true
         capi.client.connect_signal("untagged", clean_from_tag)

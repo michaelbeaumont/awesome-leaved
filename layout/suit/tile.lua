@@ -209,13 +209,13 @@ function tile:handleNew(p, tree, lastFocusNode, initLayout)
     return newTip
 end
 
-function tile:new(order, flip)
-    return setmetatable({order=order, flip=flip}, {__index=self})
+function tile:new(order, flip, name)
+    return setmetatable({order=order, flip=flip, name=name}, {__index=self})
 end
 
-tile.right=tile:new(Guitree.horiz, false)
-tile.left=tile:new(Guitree.horiz, true)
-tile.bottom=tile:new(Guitree.vert, false)
-tile.top=tile:new(Guitree.vert, true)
+tile.right=tile:new(Guitree.horiz, false, 'leavedright')
+tile.left=tile:new(Guitree.horiz, true, 'leavedleft')
+tile.bottom=tile:new(Guitree.vert, false, 'leavedbottom')
+tile.top=tile:new(Guitree.vert, true, 'leavedtop')
 
 return tile
