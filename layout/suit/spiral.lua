@@ -36,7 +36,7 @@ function spiral.nextOrder(initLayout, lastFocusNode)
     return nextOrder
 end
 
-function spiral:handleNew(p, tree, lastFocusNode, initLayout)
+function spiral:handleChanged(p, tree, lastFocusNode, initLayout)
     local top = tree.top
     local newTip
 

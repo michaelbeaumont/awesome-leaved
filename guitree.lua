@@ -473,21 +473,21 @@ local function tasklist_label(node, args)
         bg = bg_focus
         bg_image = bg_image_focus
         if fg_focus then
-            text = text .. "<span color='"..util.color_strip_alpha(fg_focus).."'>"..name.."</span>"
+            text = text .. "<span color='"..fg_focus.."'>"..name.."</span>"
         else
-            text = text .. "<span color='"..util.color_strip_alpha(fg_normal).."'>"..name.."</span>"
+            text = text .. "<span color='"..fg_normal.."'>"..name.."</span>"
         end
     elseif urgent and fg_urgent then
         bg = bg_urgent
-        text = text .. "<span color='"..util.color_strip_alpha(fg_urgent).."'>"..name.."</span>"
+        text = text .. "<span color='"..fg_urgent.."'>"..name.."</span>"
         bg_image = bg_image_urgent
     elseif min and fg_minimize and bg_minimize then
         bg = bg_minimize
-        text = text .. "<span color='"..util.color_strip_alpha(fg_minimize).."'>"..name.."</span>"
+        text = text .. "<span color='"..fg_minimize.."'>"..name.."</span>"
         bg_image = bg_image_minimize
     else
         bg = bg_normal
-        text = text .. "<span color='"..util.color_strip_alpha(fg_normal).."'>"..name.."</span>"
+        text = text .. "<span color='"..fg_normal.."'>"..name.."</span>"
         bg_image = bg_image_normal
     end
     text = text .. "</span>"

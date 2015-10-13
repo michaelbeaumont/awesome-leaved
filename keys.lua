@@ -260,15 +260,15 @@ local function select_node(callback, label_containers, label_only_containers)
                 --TODO wibox only on one tag
                 label:set_markup(text)
 
-                wi, he = label:fit(c_geo.width, c_geo.height)
+                wi, he = label:fit(label, c_geo.width, c_geo.height)
             end
         end
         local geo = {
-            x = c_geo.x + c_geo.width/2 - wi/2,
-            y = c_geo.y + c_geo.height/2 - he/2
+            x = math.floor(c_geo.x + c_geo.width/2 - wi/2),
+            y = math.floor(c_geo.y + c_geo.height/2 - he/2)
         }
         if not node.tip and not awesome.composite_manager_running then
-            wi, he = label:fit(c_geo.width, c_geo.height)
+            wi, he = label:fit(label, c_geo.width, c_geo.height)
         end
         geo.width = wi
         geo.height = he
@@ -399,7 +399,7 @@ function keys.select_use_container()
             end
             box:geometry(geo)
         else
-            wi, he = label:fit(c_geo.width, c_geo.height)
+            wi, he = label:fit(label, c_geo.width, c_geo.height)
         end
         box.visible = true
 

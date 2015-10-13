@@ -33,42 +33,42 @@ local layout = { leaved = true,
 local logger = utils.logger('fatal', 'fatal')
 
 --draw and arrange functions
-function layout.draw_tree(self, screen, geometry, hides)
-    if not self.tip and #self.children > 0 then
-        local maximized = self.data.geometry.max.h and self.data.geometry.max.v
-        local geo = maximized and screen.workarea or geometry
+function layout.draw_tree(p, tree, geometry, hides, reverse)
+    if not tree.tip and #tree.children > 0 then
+        local maximized = tree.data.geometry.max.h and tree.data.geometry.max.v
+        local geo = maximized and p.workarea or geometry
 
-        if not self:inTree() then
+        if not tree:inTree() then
             geo.width = 0
             geo.height = 0
         end
 
         --Handle the tabbox
         local tabbox_height = 0
-        if self:isStyled() then
-            if not self.data.tabbox then
-                self.data.tabbox = Tabbox:new(screen.index)
+        if tree:isStyled() then
+            if not tree.data.tabbox then
+                tree.data.tabbox = Tabbox:new(p.index)
             end
-            self.data.tabbox:redraw(screen, geo, self)
-            tabbox_height = self.data.tabbox.container.height
+            tree.data.tabbox:redraw(p, geo, tree)
+            tabbox_height = tree.data.tabbox.container.height
         end
         geo.height = geo.height - tabbox_height
         geo.y = geo.y + tabbox_height
 
 
         --if we are tabbed or stacked then render only the focused node
-        if self:isStyled() then
-            for _, s in ipairs(self.children) do
+        if tree:isStyled() then
+            for _, s in ipairs(tree.children) do
                 if s:inTree() then
                     local sub_geo = { x=geometry.x, y=geometry.y }
-                    if self.data.lastFocus ~= s then
+                    if tree.data.lastFocus ~= s then
                         sub_geo.width = 0
                         sub_geo.height = 0
-                        layout.draw_tree(s, screen, sub_geo, hides)
+                        layout.draw_tree(p, s, sub_geo, hides)
                     else
                         sub_geo.width = geo.width
                         sub_geo.height = geo.height
-                        local real_geo = layout.draw_tree(s, screen, sub_geo, hides)
+                        local real_geo = layout.draw_tree(p, s, sub_geo, hides)
                         geo.height = real_geo.height
                         geo.width = real_geo.width
                     end
@@ -80,7 +80,7 @@ function layout.draw_tree(self, screen, geometry, hides)
         else
             --figure out if we're distributing over width or height
             local dimension, invariant, offset
-            if self:isHorizontal() then
+            if tree:isHorizontal() then
                 dimension = "width"
                 invariant = "y"
                 offset = "x"
@@ -99,12 +99,17 @@ function layout.draw_tree(self, screen, geometry, hides)
             local remaining_fact = 0
 
             --figure out how many windows will be rendered
-            for _, s in ipairs(self.children) do
+            for _, s in ipairs(tree.children) do
                 remaining_fact = remaining_fact +
                 (s:inTree() and s.data.geometry.fact or 0)
             end
             --read just according to the minimum size hints
-            for _, s in ipairs(self.children) do
+            local start = reverse and #tree.children or 1
+            local ende = reverse and 1 or #tree.children
+            local dir = reverse and -1 or 1
+            --for _, s in ipairs(tree.children) do
+            for i=start,ende,dir do
+                local s = tree.children[i]
                 --retrieve size hints
                 local sh = s.data.geometry.hints or s:getSizeHints()
                 if logger.cmd.fine then
@@ -126,7 +131,9 @@ function layout.draw_tree(self, screen, geometry, hides)
                 end
             end
             --traverse the subtree and render child nodes
-            for _, s in ipairs(self.children) do
+            --for _, s in ipairs(tree.children) do
+            for i=start,ende,dir do
+                local s = tree.children[i]
                 local sub_geo = { width=geo.width, height=geo.height,
                                     x=geo.x, y=geo.y }
                 if s:inTree() then
@@ -135,26 +142,26 @@ function layout.draw_tree(self, screen, geometry, hides)
                     sub_geo[offset] = current_offset
                     sub_geo[dimension] = math.floor(sub_fact/remaining_fact*unused)
 
-                    local real_geo = layout.draw_tree(s, screen, sub_geo, hides)
+                    local real_geo = layout.draw_tree(p, s, sub_geo, hides)
 
                     used = used + real_geo[dimension]
                     current_offset = current_offset + real_geo[dimension]
                     unused = unused - real_geo[dimension]
                     remaining_fact = remaining_fact - sub_fact
                 else
-                    layout.draw_tree(s, screen, sub_geo, hides)
+                    layout.draw_tree(p, s, sub_geo, hides)
                 end
             end
             geo[dimension] = used
         end
-        self.data.geometry.last = geo
+        tree.data.geometry.last = geo
         return geo
-    elseif self.tip then
-        local c = self.data.c
+    elseif tree.tip then
+        local c = tree.data.c
         if awful.client.floating.get(c) then
             geometry.width = 0
             geometry.height = 0
-            self.data.geometry.last = self.data.c:geometry()
+            tree.data.geometry.last = tree.data.c:geometry()
             return geometry
         end
         if geometry.width > 0 and geometry.height > 0 then
@@ -162,9 +169,9 @@ function layout.draw_tree(self, screen, geometry, hides)
             geometry.width = geometry.width - border
             geometry.height = geometry.height - border
 
-            geometry = self.data.c:geometry(geometry)
+            geometry = tree.data.c:geometry(geometry)
 
-            self.data.geometry.last = geometry
+            tree.data.geometry.last = geometry
             hides.space = geometry
             --use last used geometry for stashing hidden clients
 
@@ -172,7 +179,7 @@ function layout.draw_tree(self, screen, geometry, hides)
             geometry.width = geometry.width + border
             geometry.height = geometry.height + border
 
-        elseif self:inTree() then
+        elseif tree:inTree() then
             --horrible hack due to wiboxes otherwise being under all windows
             table.insert(hides, c)
         end
@@ -194,6 +201,7 @@ function layout.arrange(p)
     local tag = awful.tag.selected(capi.mouse.screen)
     local builder = awful.tag.getproperty(tag, "layout")
 
+    local initLayout = false
     local trees = layout.trees
     if not trees[tag] then trees[tag] = {} end
     if not trees[tag][builder.class] then
@@ -203,6 +211,7 @@ function layout.arrange(p)
             top = Guitree:newContainer(true)
         }
         builder:init(trees[tag][builder.class].top)
+        initLayout = true
     end
 
     local our_tree = trees[tag][builder.class]
@@ -210,13 +219,10 @@ function layout.arrange(p)
 
     local old_num = our_tree.total_num
     local changed = n - old_num
-    local initLayout
-    if math.abs(changed) > 1 then
-        initLayout = true
-    end
-    our_tree.total_num = n
 
-    if changed > 0 then
+    initLayout = initLayout or math.abs(changed) > 1
+
+    if changed ~= 0 then
         local lastFocusNode
         local lastFocus = awful.client.focus.history.get(p.screen, 1)
         if lastFocus and not awful.client.floating.get(lastFocus) then
@@ -224,7 +230,7 @@ function layout.arrange(p)
         end
 
         --we have new clients
-        builder:handleNew(p,
+        builder:handleChanged(p,
                           our_tree,
                           lastFocusNode,
                           initLayout)
@@ -234,7 +240,7 @@ function layout.arrange(p)
 
     hides = {space = p.workarea}
     if n >= 1 then
-        builder:redraw(top, p, area, hides)
+        builder:redraw(p, top, area, hides)
     end
     for _, c in ipairs(hides) do
         c:geometry({width=1, height=1, x=hides.space.x, y = hides.space.y})
@@ -243,6 +249,9 @@ function layout.arrange(p)
 
     if logger.cmd.info then top:show() end
 
+    our_tree.total_num = n
+
+    top:show()
     layout.arrange_lock = false
 end
 

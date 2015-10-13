@@ -3,6 +3,12 @@ local naughty = require "naughty"
 local capi = { mouse = mouse }
 local utils = {}
 
+function utils.map(table, f)
+    for k, v in ipairs(table) do
+        table[k] = f(v)
+    end
+end
+
 function utils.popup(text)
     naughty.notify({ preset = naughty.config.presets.critical,
                      title = "Logger",

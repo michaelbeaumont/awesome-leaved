@@ -73,21 +73,21 @@ local function draw_column(rows, order, screen, geometry, hides)
             sub_geo[offset] = current_offset
             sub_geo[dimension] = math.floor(sub_fact/remaining_fact*unused)
 
-            local real_geo = layout.draw_tree(s, screen, sub_geo, hides)
+            local real_geo = layout.draw_tree(screen, s, sub_geo, hides)
 
             used = used + real_geo[dimension]
             current_offset = current_offset + real_geo[dimension]
             unused = unused - real_geo[dimension]
             remaining_fact = remaining_fact - sub_fact
         else
-            layout.draw_tree(s, screen, sub_geo, hides)
+            layout.draw_tree(screen,  s, sub_geo, hides)
         end
     end
     geo[dimension] = used
     return geo
 end
 
-function tile:redraw(node, screen, geometry, hides)
+function tile:redraw(screen, node, geometry, hides)
     --organize containers
     local nmaster = awful.tag.getnmaster(t)
     local masters = {fact=1}
@@ -98,7 +98,7 @@ function tile:redraw(node, screen, geometry, hides)
         else
             --TODO: Change in other parts, important for min'd containers
             local sub_geo = { width=0, height=0, x=0, y=0 }
-            layout.draw_tree(node.children[index], screen, sub_geo, hides)
+            layout.draw_tree(screen, node.children[index], sub_geo, hides)
         end
         index = index + 1
     end
@@ -179,7 +179,7 @@ function tile:redraw(node, screen, geometry, hides)
 end
 
 
-function tile:handleNew(p, tree, lastFocusNode, initLayout)
+function tile:handleChanged(p, tree, lastFocusNode, initLayout)
     local top = tree.top
     local t = awful.tag.selected(p.screen)
 
